@@ -6,7 +6,12 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.115.12",
+    "passlib>=1.7.4",
     "pre-commit>=4.2.0",
+    "python-jose>=3.4.0",
+    "sqlalchemy>=2.0.41",
+    "uvicorn>=0.34.2",
+    "yfinance>=0.2.61",
 ]
 
 [dependency-groups]
