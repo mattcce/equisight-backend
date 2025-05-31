@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, Query
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 import numpy as np
 import schemas
@@ -11,6 +12,15 @@ from zoneinfo import ZoneInfo
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 init_db()
 
 
