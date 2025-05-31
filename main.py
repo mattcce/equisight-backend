@@ -76,31 +76,31 @@ async def history(
         db.query(TickerEntry)
         .filter(
             TickerEntry.ticker == ticker,
-            TickerEntry.date >= start_date,
-            TickerEntry.date <= end_date,
+            TickerEntry.timestamp >= start_date,
+            TickerEntry.timestamp <= end_date,
         )
-        .order_by(TickerEntry.date.desc())
+        .order_by(TickerEntry.timestamp.desc())
         .all()
     )
 
     # 2. Check if we have all dates in the requested range
-    cached_dates = set(e.date for e in cached_entries)
-    yf_dates = (
+    cached_dates = set(e.timestamp for e in cached_entries)
+    yf_timestamp = (
         yf.Ticker(ticker)
         .history(start=start_date, end=end_date + 86400)
         .index.astype(np.int64)
         // 10**9
     )
 
-    trading_days = set(yf_dates)
-    missing_dates = sorted(trading_days - cached_dates)
+    trading_days = set(yf_timestamp)
+    missing_timestamps = sorted(trading_days - cached_dates)
 
-    if not missing_dates:
+    if not missing_timestamps:
         # All data is cached, return it
         result = [
             {
                 "ticker": e.ticker,
-                "date": e.date,
+                "timestamp": e.timestamp,
                 "close": e.close,
                 "volume": e.volume,
             }
@@ -111,8 +111,8 @@ async def history(
         return JSONResponse(content=result)
 
     # 3. Fetch only missing data from yfinance
-    fetch_start = missing_dates[0]
-    fetch_end = missing_dates[-1]
+    fetch_start = missing_timestamps[0]
+    fetch_end = missing_timestamps[-1]
     df = yf.Ticker(ticker).history(start=fetch_start, end=fetch_end + 86400)
     df = df.reset_index()
 
@@ -123,14 +123,16 @@ async def history(
             if hasattr(row["Date"], "date")
             else row["Date"]
         )
-        if row_date in missing_dates:
+        if row_date in missing_timestamps:
             exists = (
-                db.query(TickerEntry).filter_by(ticker=ticker, date=row_date).first()
+                db.query(TickerEntry)
+                .filter_by(ticker=ticker, timestamp=row_date)
+                .first()
             )
             if not exists:
                 db_entry = TickerEntry(
                     ticker=ticker,
-                    date=row_date,
+                    timestamp=row_date,
                     close=float(row["Close"]),
                     volume=int(row["Volume"]),
                 )
@@ -142,16 +144,16 @@ async def history(
         db.query(TickerEntry)
         .filter(
             TickerEntry.ticker == ticker,
-            TickerEntry.date >= start_date,
-            TickerEntry.date <= end_date,
+            TickerEntry.timestamp >= start_date,
+            TickerEntry.timestamp <= end_date,
         )
-        .order_by(TickerEntry.date.desc())
+        .order_by(TickerEntry.timestamp.desc())
         .all()
     )
     result = [
         {
             "ticker": e.ticker,
-            "date": e.date,
+            "timestamp": e.timestamp,
             "close": e.close,
             "volume": e.volume,
         }
@@ -164,6 +166,8 @@ async def history(
 # Usage: /news?count=INT (default to 10)
 @app.get("/ticker/{ticker}/news")
 async def news(ticker: str, count: int = Query(10, description="Number of articles")):
+    ticker = ticker.upper()
+
     # Fetch News & Press Releases (List of Dicts)
     news_list = yf.Ticker(ticker).get_news(count)
 

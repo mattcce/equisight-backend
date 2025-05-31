@@ -8,6 +8,6 @@ class TickerEntry(Base):
     __tablename__ = "ticker_entries"
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, index=True)
-    date = Column(Integer, index=True)
+    timestamp = Column(Integer, index=True)
     close = Column(Float)
     volume = Column(Integer)

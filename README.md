@@ -21,33 +21,25 @@ Retrieving, caching, and serving financial ticker data and news with statistical
 
 ### Endpoints
 
-#### Home
-
-**GET /**
-Welcome message.
-
-**Response:**
-```json
-{ "message": "Equisight Home Page!" }
-```
-
 #### Ticker Info
 
 **GET /ticker/{ticker}/info**
 Returns basic information about a ticker.
 
 **Parameters:**
-- 'ticker' (str): The stock symbol (e.g., 'AAPL).
+- 'ticker' (str): The stock symbol (e.g., 'AAPL').
 
 **Response Example:**
 ```json
 {
   "symbol": "AAPL",
-  "currentPrice": 190.5,
-  "marketCap": 3000000000000,
-  "sector": "Technology",
-  "industry": "Consumer Electronics",
-  "longBusinessSummary": "Apple Inc. designs, manufactures, and markets smartphones..."
+  "fullExchangeName": "NasdaqGS",
+  "shortName": "Apple Inc.",
+  "regularMarketPrice": 200.85,
+  "marketState": "CLOSED",
+  "region": "US",
+  "currency": "USD",
+  "previousClose": 199.95
 }
 ```
 
@@ -67,10 +59,10 @@ Returns basic information about a ticker.
 {
   "history": [
     {
-      "ticker": "UNH",
-      "date": 1748577600,
-      "close": 301.9100036621094,
-      "volume": 16272600
+      "ticker": "AAPL",
+      "timestamp": 1748577600,
+      "close": 200.85000610351562,
+      "volume": 70753100
     },
     ...
   ]
@@ -90,17 +82,18 @@ Returns basic information about a ticker.
 **Response Example:**
 ```json
 {
-  "ticker": "UNH",
+  "ticker": "AAPL",
   "articles": [
     {
-      "id": "f8adee8c-3096-35ea-b04a-71a400cbc4c0",
-      "title": "NRG Energy and UnitedHealth Are the S&P 500’s Best and Worst for May. Here’s Why.",
-      "summary": "Investors flocked to shares of NRG as the energy supplier boosted capacity. UnitedHealth stock slumped, and the company’s CEO resigned.",
-      "date": "2025-05-30",
-      "thumbnailurl": "https://media.zenfs.com/en/Barrons.com/313d58a7bd78121327fe567942df304e",
-      "alternate_thumbnailurl": "https://s.yimg.com/uu/api/res/1.2/IPnNwOM57KDU__ahZ_2Lmg--~B/Zmk9c3RyaW07aD0xMjg7dz0xNzA7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/Barrons.com/313d58a7bd78121327fe567942df304e",
-      "canonicalUrl": "https://www.barrons.com/articles/nrg-stock-unitedhealth-sp-500-80596d4e?siteid=yhoof2&yptr=yahoo",
-      "clickThroughUrl": null
+      "id": "55f60082-b396-3a53-a6ab-f66df41d6fa1",
+      "title": "Smartphone Sales Growth Hit by Tariff ‘Whirlwind of Uncertainty’",
+      "providerDisplayName": "Bloomberg",
+      "summary": "(Bloomberg) -- Sales of Apple Inc.’s iPhone and its closest rivals are expected to take a significant blow...",
+      "canonicalUrl": "https://finance.yahoo.com/news/smartphone-sales-growth-hit-tariff-091553675.html",
+      "thumbnailUrl": "https://media.zenfs.com/en/bloomberg_holding_pen_162/382f1e8fa70082fcb704824f50dbd2c8",
+      "timestamp": 1748596553,
+      "alternateThumbnailUrl": "https://s.yimg.com/uu/api/res/1.2/Et.aYmbkVIT_thsf4n06_g--~B/Zmk9c3RyaW07aD0xMjg7dz0xNzA7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/bloomberg_holding_pen_162/382f1e8fa70082fcb704824f50dbd2c8",
+      "clickThroughUrl": "https://finance.yahoo.com/news/smartphone-sales-growth-hit-tariff-091553675.html"
     },
     ...
   ]
@@ -112,7 +105,7 @@ Returns basic information about a ticker.
 - Historical data is cached in local SQLite database (equisight-backend.db)
 
 ### Running the app
-1. Start the server:
+- Start the server:
 ```bash
 uvicorn main:app --reload
 ```
