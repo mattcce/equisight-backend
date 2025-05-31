@@ -4,8 +4,14 @@ from typing import Optional
 
 class TickerInfo(BaseModel):
     symbol: str
-    currentPrice: Optional[float]
-    marketCap: Optional[int]
-    sector: Optional[str]
-    industry: Optional[str]
-    longBusinessSummary: Optional[str]
+    fullExchangeName: Optional[str]
+    shortName: Optional[str]
+    regularMarketPrice: Optional[float]
+    marketState: Optional[str]
+    region: Optional[str]
+    currency: Optional[str]
+    previousClose: Optional[float]
+    # marketCap: Optional[int] = None
+    # sector: Optional[str] = None
+    # industry: Optional[str] = None
+    # longBusinessSummary: Optional[str]

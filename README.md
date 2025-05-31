@@ -33,7 +33,7 @@ Welcome message.
 
 #### Ticker Info
 
-**GET /ticker/{ticker}**
+**GET /ticker/{ticker}/info**
 Returns basic information about a ticker.
 
 **Parameters:**
@@ -64,15 +64,17 @@ Returns basic information about a ticker.
 
 **Response Example:**
 ```json
-[
-  {
-    "ticker": "AAPL",
-    "date": "2024-05-28",
-    "close": 190.5,
-    "volume": 100000000
-  },
-  ...
-]
+{
+  "history": [
+    {
+      "ticker": "UNH",
+      "date": 1748577600,
+      "close": 301.9100036621094,
+      "volume": 16272600
+    },
+    ...
+  ]
+}
 ```
 
 #### Ticker News & Press Releases
@@ -87,19 +89,22 @@ Returns basic information about a ticker.
 
 **Response Example:**
 ```json
-[
-  {
-    "id": "0a3e8a8a-b475-369c-b164-5a8a68429c1f",
-    "title": "Jim Cramer on UnitedHealth Group (UNH): “I Have to Take a Pass”",
-    "summary": "We recently published a list of Jim Cramer Had These 21 Stocks on His Radar...",
-    "date": "2025-05-27",
-    "thumbnailurl": "https://media.zenfs.com/en/insidermonkey.com/c34a56642082d17e3fa7c8675c6742b3",
-    "alternate_thumbnailurl": "https://s.yimg.com/uu/api/res/1.2/9qB3DEDzhZm_JxOjrZMe4w--~B/...",
-    "canonicalUrl": "https://finance.yahoo.com/news/jim-cramer-unitedhealth-group-unh-215408103.html",
-    "clickThroughUrl": "https://finance.yahoo.com/news/jim-cramer-unitedhealth-group-unh-215408103.html"
-  },
-  ...
-]
+{
+  "ticker": "UNH",
+  "articles": [
+    {
+      "id": "f8adee8c-3096-35ea-b04a-71a400cbc4c0",
+      "title": "NRG Energy and UnitedHealth Are the S&P 500’s Best and Worst for May. Here’s Why.",
+      "summary": "Investors flocked to shares of NRG as the energy supplier boosted capacity. UnitedHealth stock slumped, and the company’s CEO resigned.",
+      "date": "2025-05-30",
+      "thumbnailurl": "https://media.zenfs.com/en/Barrons.com/313d58a7bd78121327fe567942df304e",
+      "alternate_thumbnailurl": "https://s.yimg.com/uu/api/res/1.2/IPnNwOM57KDU__ahZ_2Lmg--~B/Zmk9c3RyaW07aD0xMjg7dz0xNzA7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/Barrons.com/313d58a7bd78121327fe567942df304e",
+      "canonicalUrl": "https://www.barrons.com/articles/nrg-stock-unitedhealth-sp-500-80596d4e?siteid=yhoof2&yptr=yahoo",
+      "clickThroughUrl": null
+    },
+    ...
+  ]
+}
 ```
 
 ### Notes

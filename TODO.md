@@ -1,2 +1,3 @@
+- Create a new route for intraday
 - Create a register and login page
 - Fix infopage for ETFs (the dictionary returned does not have certain keys 'sector', 'industry' etc.) -> Leads to internal server error
