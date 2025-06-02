@@ -1,3 +1,5 @@
-- Create a new route for intraday
+- (Intraday) See how to cache the data when market is closed
+
 - Create a register and login page
-- Fix infopage for ETFs (the dictionary returned does not have certain keys 'sector', 'industry' etc.) -> Leads to internal server error
+
+- Research all the financial metrics I want to include in the API

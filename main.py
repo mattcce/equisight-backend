@@ -6,8 +6,8 @@ import numpy as np
 import schemas
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
-from models import TickerEntry
-from datetime import datetime, timedelta, timezone
+from models import TickerEntry, Intraday, TickerInfo
+from datetime import datetime, timedelta, timezone, time
 from zoneinfo import ZoneInfo
 
 
@@ -39,15 +39,23 @@ async def root():
 
 # TODO: Change to /{ticker}/info
 @app.get("/ticker/{ticker}/info")
-async def info(ticker):
+async def info(ticker: str, db: Session = Depends(get_db)):
     info = yf.Ticker(ticker).info
+
+    exists = db.query(TickerInfo).filter(TickerInfo.ticker == ticker).first()
+    if not exists:
+        # For caching of timezone info
+        data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
+        db.add(TickerInfo(**data))
+        db.commit()
+
     filtered_info = schemas.TickerInfo(**info)
 
     return filtered_info
 
 
 # Usage: /history?start=YYYY-MM-DD&end=YYYY-MM-DD (Default to 1mo from current date)
-@app.api_route("/ticker/{ticker}/history", methods=["GET", "POST"])
+@app.get("/ticker/{ticker}/history")
 async def history(
     ticker: str,
     start: str = Query(
@@ -60,16 +68,21 @@ async def history(
     db: Session = Depends(get_db),
 ):
     ticker = ticker.upper()
+    present = db.query(TickerInfo).filter(TickerInfo.ticker == ticker).first()
+    if present:
+        tz = ZoneInfo(present.exchangeTimezoneName)
+    else:
+        # For caching of timezone info
+        info = yf.Ticker(ticker).info
+        data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
+        db.add(TickerInfo(**data))
+        db.commit()
+        tz = ZoneInfo(info["exchangeTimezoneName"])
+
     start_date = int(
-        datetime.strptime(start, "%Y-%m-%d")
-        .replace(tzinfo=ZoneInfo("America/New_York"))
-        .timestamp()
+        datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=tz).timestamp()
     )
-    end_date = int(
-        datetime.strptime(end, "%Y-%m-%d")
-        .replace(tzinfo=ZoneInfo("America/New_York"))
-        .timestamp()
-    )
+    end_date = int(datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=tz).timestamp())
 
     # 1. Query for existing data in the requested range
     cached_entries = (
@@ -160,6 +173,98 @@ async def history(
         for e in all_entries
     ]
     result = {"history": result}
+    return JSONResponse(content=result)
+
+
+@app.get("/ticker/{ticker}/intraday")
+async def intraday(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper()
+
+    # Check if Market is closed, if so return most recent intraday data
+    info = yf.Ticker(ticker).info
+    marketState = info["marketState"]
+    tz = ZoneInfo(info["exchangeTimezoneName"])
+
+    # Check if records are present
+    present = (
+        db.query(Intraday)
+        .filter(Intraday.ticker == ticker)
+        .order_by(Intraday.timestamp.desc())
+        .first()
+    )
+
+    if marketState != "REGULAR":
+        # if present:
+        #     latestDate = yf.Ticker(ticker).history(period="1d").reset_index()['Date'][0]
+        #     start = int(datetime.combine(latestDate.date(), time(0,0), tzinfo=tz).timestamp)
+        #     end = int(datetime.combine(latestDate.date(), time(23,59), tzinfo=tz).timestamp)
+
+        recentData = (
+            yf.Ticker(ticker)
+            .history(period="1d", interval="1m")
+            .reset_index()[["Datetime", "Close"]]
+        )
+        result = {
+            "intraday": [
+                {
+                    "timestamp": int(row["Datetime"].timestamp()),
+                    "close": float(row["Close"]),
+                }
+                for _, row in recentData.iterrows()
+            ]
+        }
+        return JSONResponse(content=result)
+
+    # Market is Open
+    # Current trading date timestamp
+    dateTimestamp = int(
+        datetime.combine(datetime.now(tz).date(), time.min, tzinfo=tz).timestamp()
+    )
+
+    if present:
+        # Check last recorded timestamp
+        latestTimestamp = present.timestamp
+        # Timestamp belongs to current date -> return the difference
+        if dateTimestamp < latestTimestamp:
+            df = (
+                yf.Ticker(ticker)
+                .history(start=(latestTimestamp + 1), interval="1m")
+                .reset_index()
+            )
+
+    # Timestamp belongs to previous trading day // No Data cached -> return full day data up to that point
+    else:
+        df = yf.Ticker(ticker).history(period="1d", interval="1m").reset_index()
+
+    for _, row in df.iterrows():
+        row_date = (
+            int(row["Datetime"].timestamp())
+            if hasattr(row["Datetime"], "date")
+            else row["Datetime"]
+        )
+
+        db_entry = Intraday(
+            ticker=ticker, timestamp=row_date, close=float(row["Close"])
+        )
+        db.add(db_entry)
+    db.commit()
+
+    # Return all data from current trading day
+    all_entries = (
+        db.query(Intraday)
+        .filter(
+            Intraday.ticker == ticker,
+            Intraday.timestamp >= dateTimestamp,
+        )
+        .order_by(Intraday.timestamp.desc())
+        .all()
+    )
+
+    result = [
+        {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
+        for e in all_entries
+    ]
+    result = {"intraday": result}
     return JSONResponse(content=result)
 
 

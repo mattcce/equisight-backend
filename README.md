@@ -1,60 +1,45 @@
-# `equisight` Backend
+# Endpoints
 
-## Development
+## Ticker Data
 
-1. Clone repository: `https://github.com/mattcce/equisight-backend`
-2. Navigate to repository: `cd equisight-backend`
+### Ticker Info
 
-### Setting up build system
+`GET /ticker/{ticker}/info`
 
-**macOS/via `brew`**
-
-1. Install `uv`: `brew install uv`
-2. Install project dependencies: `uv sync`
-3. Setup pre-commit hooks (via `pre-commit`): `uv run pre-commit install`
-
-## `equisight` Backend API
-
-Retrieving, caching, and serving financial ticker data and news with statistical and sentiment analysis.
-
----
-
-### Endpoints
-
-#### Ticker Info
-
-**GET /ticker/{ticker}/info**
 Returns basic information about a ticker.
 
 **Parameters:**
+
 - 'ticker' (str): The stock symbol (e.g., 'AAPL').
 
 **Response Example:**
+
 ```json
 {
-  "symbol": "AAPL",
-  "fullExchangeName": "NasdaqGS",
-  "shortName": "Apple Inc.",
-  "regularMarketPrice": 200.85,
-  "marketState": "CLOSED",
-  "region": "US",
-  "currency": "USD",
-  "previousClose": 199.95
+ "symbol": "AAPL",
+ "fullExchangeName": "NasdaqGS",
+ "shortName": "Apple Inc.",
+ "regularMarketPrice": 200.85,
+ "marketState": "CLOSED",
+ "region": "US",
+ "currency": "USD",
+ "previousClose": 199.95
 }
 ```
 
-#### Ticker Historical Data
+### Ticker Historical Data
 
-**GET or POST /ticker/{ticker}/history**
+`GET /ticker/{ticker}/history`
 
 **Parameters:**
+
 - `start` (str, optional): Start date in `YYYY-MM-DD` (default: 30 days ago)
 - `end` (str, optional): End date in `YYYY-MM-DD` (default: today)
 
-**Usage Example:**
-/ticker/{ticker}/history?start=2025-01-01&end=2025-05-05
+**Usage Example:** `/ticker/{ticker}/history?start=2025-01-01&end=2025-05-05`
 
 **Response Example:**
+
 ```json
 {
   "history": [
@@ -69,17 +54,18 @@ Returns basic information about a ticker.
 }
 ```
 
-#### Ticker News & Press Releases
+### Ticker News & Press Releases
 
-**GET /ticker/{ticker}/news**
+`GET /ticker/{ticker}/news`
 
 **Parameters:**
+
 - `count` (int, optional): Number of articles to return (default: 10)
 
-**Usage Example:**
-/ticker/{ticker}/news?count=20
+**Usage Example:** `/ticker/{ticker}/news?count=20`
 
 **Response Example:**
+
 ```json
 {
   "ticker": "AAPL",
@@ -100,12 +86,19 @@ Returns basic information about a ticker.
 }
 ```
 
-### Notes
-- All endpoints return in JSON
-- Historical data is cached in local SQLite database (equisight-backend.db)
+### Ticker Intraday Data
 
-### Running the app
-- Start the server:
-```bash
-uvicorn main:app --reload
+`GET /ticker/{ticker}/intraday`
+
+**Response Example:**
+```json
+{
+  "intraday": [
+    {
+      "timestamp": 1748611800,
+      "close": 198.88999938964844
+    },
+    ...
+  ]
+}
 ```
