@@ -9,6 +9,7 @@ from database import SessionLocal, init_db
 from models import TickerEntry, Intraday, TickerInfo
 from datetime import datetime, timedelta, timezone, time
 from zoneinfo import ZoneInfo
+from services import get_and_store_quarterly_metrics
 
 
 app = FastAPI()
@@ -266,6 +267,40 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     ]
     result = {"intraday": result}
     return JSONResponse(content=result)
+
+
+@app.get("/ticker/{ticker}/metrics")
+async def metrics(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper()
+    try:
+        ticker_data_obj = yf.Ticker(ticker)
+    except Exception as e:
+        print(f"Error creating yfinance.Ticker object for {ticker}: {e}")
+        return JSONResponse(
+            content={
+                "ticker": ticker,
+                "error": "Invalid ticker symbol or yfinance error.",
+            },
+            status_code=400,
+        )
+
+    quarterly_reports_data = get_and_store_quarterly_metrics(
+        ticker_data_obj, ticker, db
+    )
+
+    if not quarterly_reports_data:
+        return JSONResponse(
+            content={
+                "ticker": ticker,
+                "quarterlyReports": [],
+                "message": "No quarterly metrics data found or processed.",
+            },
+            status_code=404,
+        )
+
+    return JSONResponse(
+        content={"ticker": ticker, "quarterlyReports": quarterly_reports_data}
+    )
 
 
 # Usage: /news?count=INT (default to 10)

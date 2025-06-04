@@ -2,4 +2,6 @@
 
 - Create a register and login page
 
-- Research all the financial metrics I want to include in the API
+- Make annual metrics endpoint
+
+- Look into WACC, ROIC

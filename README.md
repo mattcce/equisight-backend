@@ -102,3 +102,40 @@ Returns basic information about a ticker.
   ]
 }
 ```
+
+**Note:**
+If market is closed, it will return the intraday data from the latest trading day
+
+
+### Ticker Financial Metrics
+
+`GET /ticker/{ticker}/metrics `
+
+**Response Example:**
+```json
+{
+  "ticker": "AAPL",
+  "quarterlyReports": [
+    {
+      "ticker": "AAPL",
+      "quarterEndDate": 1743379200,
+      "revenue": 95359000000.0,
+      "eps": 1.65,
+      "ebitda": 32250000000.0,
+      "netIncome": 24780000000.0,
+      "totalAssets": 331233000000.0,
+      "totalLiabilities": 264437000000.0,
+      "shareholderEquity": 66796000000.0,
+      "longTermDebt": 78566000000.0,
+      "cashAndEquivalents": 28162000000.0,
+      "operatingCashFlow": 23952000000.0,
+      "freeCashFlow": 20881000000.0,
+      "grossMargin": 0.47050619238876246,
+      "roe": 0.3709802982214504,
+      "roa": 0.07481138654663032,
+      "debtToEquity": 3.958874782921133
+    },
+    ...
+  ]
+}
+```
