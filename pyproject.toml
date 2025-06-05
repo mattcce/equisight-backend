@@ -31,3 +31,4 @@ executor.type = "uv"
 format = "ruff format"
 check = "ruff check"
 lint = ["format", "check"]
+dev = "uvicorn main:app --reload"
