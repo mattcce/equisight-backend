@@ -93,10 +93,14 @@ Returns basic information about a ticker.
 **Response Example:**
 ```json
 {
+  "marketOpen": 1749130200,
+  "marketClose": 1749153600,
+  "exchangeRate": 0.7772907018661499,
   "intraday": [
     {
-      "timestamp": 1748611800,
-      "close": 198.88999938964844
+      "ticker": "AAPL",
+      "timestamp": 1749153540,
+      "close": 200.5500030517578
     },
     ...
   ]
@@ -104,7 +108,8 @@ Returns basic information about a ticker.
 ```
 
 **Note:**
-If market is closed, it will return the intraday data from the latest trading day
+- If market is closed, it will return the intraday data from the latest trading day
+- Currently only tickers on US, Singapore, Hong Kong, London, and Tokyo Stock Exchanges are supported
 
 
 ### Ticker Financial Metrics

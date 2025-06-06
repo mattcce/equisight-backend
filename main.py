@@ -11,7 +11,12 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import exchange_calendars as xcals
 import pandas as pd
-from services import get_and_store_quarterly_metrics, getExchangeHours, getExchangeISO
+from services import (
+    get_and_store_quarterly_metrics,
+    getExchangeHours,
+    getExchangeISO,
+    getForex,
+)
 
 
 app = FastAPI()
@@ -71,16 +76,21 @@ async def history(
     db: Session = Depends(get_db),
 ):
     ticker = ticker.upper()
-    present = db.query(TickerInfo).filter(TickerInfo.ticker == ticker).first()
-    if present:
-        tz = ZoneInfo(present.exchangeTimezoneName)
-    else:
-        # For caching of timezone info
-        info = yf.Ticker(ticker).info
-        data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
-        db.add(TickerInfo(**data))
-        db.commit()
-        tz = ZoneInfo(info["exchangeTimezoneName"])
+    info = yf.Ticker(ticker).info
+    data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
+    db.add(TickerInfo(**data))
+    db.commit()
+    tz = ZoneInfo(info["exchangeTimezoneName"])
+    currency = info["currency"]
+    forexRate = (
+        (
+            yf.Ticker(getForex(currency))
+            .history(start=int(datetime.now().timestamp()) - 600, interval="1m")
+            .iloc[-1, 3]
+        )
+        if currency != "SGD"
+        else 1.00
+    )
 
     start_date = int(
         datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=tz).timestamp()
@@ -123,7 +133,7 @@ async def history(
             for e in cached_entries
         ]
         print("success")
-        result = {"history": result}
+        result = {"forexRate": forexRate, "history": result}
         return JSONResponse(content=result)
 
     # 3. Fetch only missing data from yfinance
@@ -175,7 +185,7 @@ async def history(
         }
         for e in all_entries
     ]
-    result = {"history": result}
+    result = {"forexRate": forexRate, "history": result}
     return JSONResponse(content=result)
 
 
@@ -183,7 +193,6 @@ async def history(
 async def intraday(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
 
-    # Check if Market is closed, if so return most recent intraday data
     info = yf.Ticker(ticker).info
     marketState = info["marketState"]
     tznStr = info["exchangeTimezoneName"]
@@ -195,7 +204,18 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     exchangeISO = getExchangeISO(tznStr)
     exchangeHours = getExchangeHours(exchangeISO, dayStr)
     exchange = xcals.get_calendar(exchangeISO)
+    currency = info["currency"]
+    forexRate = (
+        (
+            yf.Ticker(getForex(currency))
+            .history(start=int(datetime.now().timestamp()) - 600, interval="1m")
+            .iloc[-1, 3]
+        )
+        if currency != "SGD"
+        else 1.00
+    )
 
+    # Check if Market is closed, if so return most recent intraday data
     if marketState != "REGULAR":
         # last trading day's hours
         lastClose = int(exchange.previous_close(currentTime).timestamp())
@@ -249,7 +269,12 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
             {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
             for e in all_entries
         ]
-        result = {"marketOpen": lastOpen, "marketClose": lastClose, "intraday": result}
+        result = {
+            "marketOpen": lastOpen,
+            "marketClose": lastClose,
+            "exchangeRate": forexRate,
+            "intraday": result,
+        }
         return JSONResponse(content=result)
 
     # Market is Open
@@ -309,6 +334,7 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     result = {
         "marketOpen": exchangeHours["openTimestamp"],
         "marketClose": exchangeHours["closeTimestamp"],
+        "exchangeRate": forexRate,
         "intraday": result,
     }
     return JSONResponse(content=result)

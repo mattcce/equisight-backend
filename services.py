@@ -35,6 +35,11 @@ def getExchangeHours(iso, dayStr):
     return {"openTimestamp": openTs, "closeTimestamp": closeTs}
 
 
+# Foreign Exchange Rates relative to SGD
+def getForex(cur):
+    return f"SGD{cur.upper()}=X"
+
+
 # Convert NaN to None
 def safe_get_metric(statement_series, key):
     value = statement_series.get(key)
