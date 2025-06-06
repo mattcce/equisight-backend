@@ -4,6 +4,35 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from models import QuarterlyMetrics
 import numpy as np
+import exchange_calendars as xcals
+
+
+# Exchange ISO
+def getExchangeISO(tzn):
+    match tzn:
+        case "America/New_York":
+            return "XNYS"
+        case "Asia/Singapore":
+            return "XSES"
+        case "Asia/Hong_Kong":
+            return "XHKG"
+        case "Europe/London":
+            return "XLON"
+        case "Asia/Tokyo":
+            return "XTKS"
+
+
+# Exchange Timezone
+def getExchangeHours(iso, dayStr):
+    calendar = xcals.get_calendar(iso)
+    schedule = calendar.schedule
+    dayTimes = schedule.loc[dayStr] if dayStr in schedule.index else None
+    openTs = None
+    closeTs = None
+    if dayTimes is not None:
+        openTs = int(dayTimes["open"].timestamp())
+        closeTs = int(dayTimes["close"].timestamp())
+    return {"openTimestamp": openTs, "closeTimestamp": closeTs}
 
 
 # Convert NaN to None

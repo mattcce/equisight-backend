@@ -7,9 +7,11 @@ import schemas
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models import TickerEntry, Intraday, TickerInfo
-from datetime import datetime, timedelta, timezone, time
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from services import get_and_store_quarterly_metrics
+import exchange_calendars as xcals
+import pandas as pd
+from services import get_and_store_quarterly_metrics, getExchangeHours, getExchangeISO
 
 
 app = FastAPI()
@@ -184,8 +186,73 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     # Check if Market is closed, if so return most recent intraday data
     info = yf.Ticker(ticker).info
     marketState = info["marketState"]
-    tz = ZoneInfo(info["exchangeTimezoneName"])
+    tznStr = info["exchangeTimezoneName"]
+    serverTimezone = "Asia/Singapore"
+    now = datetime.now(ZoneInfo(serverTimezone))
+    tz = ZoneInfo(tznStr)
+    currentTime = now.astimezone(tz)
+    dayStr = currentTime.strftime("%Y-%m-%d")
+    exchangeISO = getExchangeISO(tznStr)
+    exchangeHours = getExchangeHours(exchangeISO, dayStr)
+    exchange = xcals.get_calendar(exchangeISO)
 
+    if marketState != "REGULAR":
+        # last trading day's hours
+        lastClose = int(exchange.previous_close(currentTime).timestamp())
+        lastOpen = int(exchange.previous_open(currentTime).timestamp())
+
+        closedDb = (
+            db.query(Intraday)
+            .filter(Intraday.ticker == ticker, Intraday.timestamp >= lastOpen)
+            .order_by(Intraday.timestamp.desc())
+            .first()
+        )
+
+        df = pd.DataFrame()
+
+        if closedDb:
+            latestTimestamp = closedDb.timestamp
+            df = (
+                yf.Ticker(ticker)
+                .history(start=latestTimestamp + 1, interval="1m")
+                .reset_index()
+            )
+
+        else:
+            df = yf.Ticker(ticker).history(period="1d", interval="1m").reset_index()
+
+        for _, row in df.iterrows():
+            row_date = (
+                int(row["Datetime"].timestamp())
+                if hasattr(row["Datetime"], "date")
+                else row["Datetime"]
+            )
+
+            db_entry = Intraday(
+                ticker=ticker, timestamp=row_date, close=float(row["Close"])
+            )
+            db.add(db_entry)
+        db.commit()
+
+        # Return all data from current trading day
+        all_entries = (
+            db.query(Intraday)
+            .filter(
+                Intraday.ticker == ticker,
+                Intraday.timestamp >= lastOpen,
+            )
+            .order_by(Intraday.timestamp.desc())
+            .all()
+        )
+
+        result = [
+            {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
+            for e in all_entries
+        ]
+        result = {"marketOpen": lastOpen, "marketClose": lastClose, "intraday": result}
+        return JSONResponse(content=result)
+
+    # Market is Open
     # Check if records are present
     present = (
         db.query(Intraday)
@@ -194,47 +261,21 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
         .first()
     )
 
-    if marketState != "REGULAR":
-        # if present:
-        #     latestDate = yf.Ticker(ticker).history(period="1d").reset_index()['Date'][0]
-        #     start = int(datetime.combine(latestDate.date(), time(0,0), tzinfo=tz).timestamp)
-        #     end = int(datetime.combine(latestDate.date(), time(23,59), tzinfo=tz).timestamp)
-
-        recentData = (
-            yf.Ticker(ticker)
-            .history(period="1d", interval="1m")
-            .reset_index()[["Datetime", "Close"]]
-        )
-        result = {
-            "intraday": [
-                {
-                    "timestamp": int(row["Datetime"].timestamp()),
-                    "close": float(row["Close"]),
-                }
-                for _, row in recentData.iterrows()
-            ]
-        }
-        return JSONResponse(content=result)
-
-    # Market is Open
-    # Current trading date timestamp
-    dateTimestamp = int(
-        datetime.combine(datetime.now(tz).date(), time.min, tzinfo=tz).timestamp()
-    )
+    df = pd.DataFrame()
 
     if present:
         # Check last recorded timestamp
         latestTimestamp = present.timestamp
         # Timestamp belongs to current date -> return the difference
-        if dateTimestamp < latestTimestamp:
+        if exchangeHours["openTimestamp"] <= latestTimestamp:
             df = (
                 yf.Ticker(ticker)
                 .history(start=(latestTimestamp + 1), interval="1m")
                 .reset_index()
             )
 
-    # Timestamp belongs to previous trading day // No Data cached -> return full day data up to that point
     else:
+        # Timestamp belongs to previous trading day // No Data cached -> return full day data up to that point
         df = yf.Ticker(ticker).history(period="1d", interval="1m").reset_index()
 
     for _, row in df.iterrows():
@@ -255,7 +296,7 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
         db.query(Intraday)
         .filter(
             Intraday.ticker == ticker,
-            Intraday.timestamp >= dateTimestamp,
+            Intraday.timestamp >= exchangeHours["openTimestamp"],
         )
         .order_by(Intraday.timestamp.desc())
         .all()
@@ -265,7 +306,11 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
         {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
         for e in all_entries
     ]
-    result = {"intraday": result}
+    result = {
+        "marketOpen": exchangeHours["openTimestamp"],
+        "marketClose": exchangeHours["closeTimestamp"],
+        "intraday": result,
+    }
     return JSONResponse(content=result)
 
 
