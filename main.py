@@ -13,6 +13,7 @@ import exchange_calendars as xcals
 import pandas as pd
 from services import (
     get_and_store_quarterly_metrics,
+    get_and_store_annual_metrics,
     getExchangeHours,
     getExchangeISO,
     getForex,
@@ -323,8 +324,8 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     return JSONResponse(content=result)
 
 
-@app.get("/ticker/{ticker}/metrics")
-async def metrics(ticker: str, db: Session = Depends(get_db)):
+@app.get("/ticker/{ticker}/quarterlymetrics")
+async def quarterly_metrics(ticker: str, db: Session = Depends(get_db)):
     ticker = ticker.upper()
     try:
         ticker_data_obj = yf.Ticker(ticker)
@@ -354,6 +355,38 @@ async def metrics(ticker: str, db: Session = Depends(get_db)):
 
     return JSONResponse(
         content={"ticker": ticker, "quarterlyReports": quarterly_reports_data}
+    )
+
+
+@app.get("/ticker/{ticker}/metrics")
+async def metrics(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper()
+    try:
+        ticker_data_obj = yf.Ticker(ticker)
+    except Exception as e:
+        print(f"Error creating yfinance.Ticker object for {ticker}: {e}")
+        return JSONResponse(
+            content={
+                "ticker": ticker,
+                "error": "Invalid ticker symbol or yfinance error.",
+            },
+            status_code=400,
+        )
+
+    annual_reports_data = get_and_store_annual_metrics(ticker_data_obj, ticker, db)
+
+    if not annual_reports_data:
+        return JSONResponse(
+            content={
+                "ticker": ticker,
+                "annualReports": [],
+                "message": "No annual metrics data found or processed.",
+            },
+            status_code=404,
+        )
+
+    return JSONResponse(
+        content={"ticker": ticker, "annualReports": annual_reports_data}
     )
 
 

@@ -49,3 +49,26 @@ class QuarterlyMetrics(Base):
     roe = Column(Float, nullable=True)
     roa = Column(Float, nullable=True)
     debtToEquity = Column(Float, nullable=True)
+
+
+class AnnualMetrics(Base):
+    __tablename__ = "annual_metrics"
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, index=True)
+    yearEndDate = Column(BigInteger, index=True)
+
+    revenue = Column(Float, nullable=True)
+    eps = Column(Float, nullable=True)
+    ebitda = Column(Float, nullable=True)
+    netIncome = Column(Float, nullable=True)
+    totalAssets = Column(Float, nullable=True)
+    totalLiabilities = Column(Float, nullable=True)
+    shareholderEquity = Column(Float, nullable=True)
+    longTermDebt = Column(Float, nullable=True)
+    cashAndEquivalents = Column(Float, nullable=True)
+    operatingCashFlow = Column(Float, nullable=True)
+    freeCashFlow = Column(Float, nullable=True)
+    grossMargin = Column(Float, nullable=True)
+    roe = Column(Float, nullable=True)
+    roa = Column(Float, nullable=True)
+    debtToEquity = Column(Float, nullable=True)
