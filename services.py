@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from models import QuarterlyMetrics
 import numpy as np
 import exchange_calendars as xcals
+from datetime import datetime
 
 
 # Exchange ISO
@@ -37,7 +38,19 @@ def getExchangeHours(iso, dayStr):
 
 # Foreign Exchange Rates relative to SGD
 def getForex(cur):
-    return f"SGD{cur.upper()}=X"
+    if cur.upper() == "SGD":
+        return 1.00
+    ticker = f"SGD{cur.upper()}=X"
+    marketState = yf.Ticker(ticker).info["marketState"]
+    if marketState != "REGULAR":
+        price = yf.Ticker(ticker).history(period="1d").iloc[0, 3]
+        return price
+    price = (
+        yf.Ticker(ticker)
+        .history(start=int(datetime.now().timestamp()) - 600, interval="1m")
+        .iloc[-1, 3]
+    )
+    return price
 
 
 # Convert NaN to None

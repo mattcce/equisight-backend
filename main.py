@@ -45,7 +45,6 @@ async def root():
     return {"message": "Equisight Home Page!"}
 
 
-# TODO: Change to /{ticker}/info
 @app.get("/ticker/{ticker}/info")
 async def info(ticker: str, db: Session = Depends(get_db)):
     info = yf.Ticker(ticker).info
@@ -82,15 +81,7 @@ async def history(
     db.commit()
     tz = ZoneInfo(info["exchangeTimezoneName"])
     currency = info["currency"]
-    forexRate = (
-        (
-            yf.Ticker(getForex(currency))
-            .history(start=int(datetime.now().timestamp()) - 600, interval="1m")
-            .iloc[-1, 3]
-        )
-        if currency != "SGD"
-        else 1.00
-    )
+    forexRate = getForex(currency)
 
     start_date = int(
         datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=tz).timestamp()
@@ -205,15 +196,7 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
     exchangeHours = getExchangeHours(exchangeISO, dayStr)
     exchange = xcals.get_calendar(exchangeISO)
     currency = info["currency"]
-    forexRate = (
-        (
-            yf.Ticker(getForex(currency))
-            .history(start=int(datetime.now().timestamp()) - 600, interval="1m")
-            .iloc[-1, 3]
-        )
-        if currency != "SGD"
-        else 1.00
-    )
+    forexRate = getForex(currency)
 
     # Check if Market is closed, if so return most recent intraday data
     if marketState != "REGULAR":
