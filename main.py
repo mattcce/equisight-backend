@@ -366,8 +366,8 @@ async def intraday(
     return JSONResponse(content=result)
 
 
-@app.get("/ticker/{ticker}/quarterlymetrics")
-async def quarterly_metrics(
+@app.get("/ticker/{ticker}/quarterly-reports")
+async def quarterly_reports(
     ticker: str,
     db: Session = Depends(get_db),
     user: User = Depends(current_active_user),
@@ -404,8 +404,8 @@ async def quarterly_metrics(
     )
 
 
-@app.get("/ticker/{ticker}/metrics")
-async def metrics(
+@app.get("/ticker/{ticker}/annual-reports")
+async def annual_reports(
     ticker: str,
     db: Session = Depends(get_db),
     user: User = Depends(current_active_user),
