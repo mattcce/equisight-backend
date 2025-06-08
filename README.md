@@ -190,6 +190,8 @@ Returns basic information about a ticker.
 **Response Example:**
 ```json
 {
+  "fromCurrency": "USD",
+  "toCurrency": "JPY",
   "forexRate": 143.54200744628906
 }
 ```

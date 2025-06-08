@@ -495,6 +495,8 @@ async def forex(
     toCur: str = Query("SGD"),
     user: User = Depends(current_active_user),
 ):
-    exchangeRate = getForex(fromCur.upper(), toCur.upper())
-    result = {"forexRate": exchangeRate}
+    fromCur = fromCur.upper()
+    toCur = toCur.upper()
+    exchangeRate = getForex(fromCur, toCur)
+    result = {"fromCurrency": fromCur, "toCurrency": toCur, "forexRate": exchangeRate}
     return JSONResponse(content=result)
