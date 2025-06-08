@@ -114,7 +114,7 @@ Returns basic information about a ticker.
 
 ### Ticker Financial Metrics
 
-`GET /ticker/{ticker}/metrics `
+`GET /ticker/{ticker}/quarterly-reports `
 
 **Response Example:**
 ```json
@@ -142,5 +142,54 @@ Returns basic information about a ticker.
     },
     ...
   ]
+}
+```
+
+`GET /ticker/{ticker}/annual-reports `
+
+**Response Example:**
+```json
+{
+  "ticker": "AAPL",
+  "annualReports": [
+    {
+      "ticker": "AAPL",
+      "yearEndDate": 1727654400,
+      "revenue": 391035000000.0,
+      "eps": 6.08,
+      "ebitda": 134661000000.0,
+      "netIncome": 93736000000.0,
+      "totalAssets": 364980000000.0,
+      "totalLiabilities": 308030000000.0,
+      "shareholderEquity": 56950000000.0,
+      "longTermDebt": 85750000000.0,
+      "cashAndEquivalents": 29943000000.0,
+      "operatingCashFlow": 118254000000.0,
+      "freeCashFlow": 108807000000.0,
+      "grossMargin": 0.4620634981523393,
+      "roe": 1.6459350307287095,
+      "roa": 0.25682503150857583,
+      "debtToEquity": 5.408779631255487
+    },
+    ...
+  ]
+}
+```
+
+### Foreign Exchange Rate
+
+`GET /forex`
+
+**Parameters:**
+
+- `fromCur` (str, optional): Base Currency (default: USD)
+- `toCur` (str, optional): New Currency (default: SGD)
+
+**Usage Example:** `/forex?fromCur=USD&toCur=JPY`
+
+**Response Example:**
+```json
+{
+  "forexRate": 143.54200744628906
 }
 ```

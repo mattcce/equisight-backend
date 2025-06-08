@@ -114,13 +114,15 @@ async def history(
     user: User = Depends(current_active_user),
 ):
     ticker = ticker.upper()
-    info = yf.Ticker(ticker).info
-    data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
-    db.add(TickerInfo(**data))
-    db.commit()
-    tz = ZoneInfo(info["exchangeTimezoneName"])
-    currency = info["currency"]
-    forexRate = getForex(currency)
+    present = db.query(TickerInfo).filter(TickerInfo.ticker == ticker).first()
+    if present:
+        tz = ZoneInfo(present.exchangeTimezoneName)
+    else:
+        info = yf.Ticker(ticker).info
+        data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
+        db.add(TickerInfo(**data))
+        db.commit()
+        tz = ZoneInfo(info["exchangeTimezoneName"])
 
     start_date = int(
         datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=tz).timestamp()
@@ -163,7 +165,7 @@ async def history(
             for e in cached_entries
         ]
         print("success")
-        result = {"forexRate": forexRate, "history": result}
+        result = {"history": result}
         return JSONResponse(content=result)
 
     # 3. Fetch only missing data from yfinance
@@ -215,7 +217,7 @@ async def history(
         }
         for e in all_entries
     ]
-    result = {"forexRate": forexRate, "history": result}
+    result = {"history": result}
     return JSONResponse(content=result)
 
 
@@ -238,8 +240,6 @@ async def intraday(
     exchangeISO = getExchangeISO(tznStr)
     exchangeHours = getExchangeHours(exchangeISO, dayStr)
     exchange = xcals.get_calendar(exchangeISO)
-    currency = info["currency"]
-    forexRate = getForex(currency)
 
     # Check if Market is closed, if so return most recent intraday data
     if marketState != "REGULAR":
@@ -298,7 +298,6 @@ async def intraday(
         result = {
             "marketOpen": lastOpen,
             "marketClose": lastClose,
-            "exchangeRate": forexRate,
             "intraday": result,
         }
         return JSONResponse(content=result)
@@ -360,7 +359,6 @@ async def intraday(
     result = {
         "marketOpen": exchangeHours["openTimestamp"],
         "marketClose": exchangeHours["closeTimestamp"],
-        "exchangeRate": forexRate,
         "intraday": result,
     }
     return JSONResponse(content=result)
@@ -487,4 +485,16 @@ async def news(
 
     result = {"ticker": ticker, "articles": result}
 
+    return JSONResponse(content=result)
+
+
+# Usage: /forex?fromCur=SGD&toCur=USD
+@app.get("/forex")
+async def forex(
+    fromCur: str = Query("USD"),
+    toCur: str = Query("SGD"),
+    user: User = Depends(current_active_user),
+):
+    exchangeRate = getForex(fromCur.upper(), toCur.upper())
+    result = {"forexRate": exchangeRate}
     return JSONResponse(content=result)

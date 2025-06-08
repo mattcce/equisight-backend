@@ -37,10 +37,10 @@ def getExchangeHours(iso, dayStr):
 
 
 # Foreign Exchange Rates relative to SGD
-def getForex(cur):
-    if cur.upper() == "SGD":
+def getForex(fromCur, toCur):
+    if fromCur.upper() == toCur.upper():
         return 1.00
-    ticker = f"SGD{cur.upper()}=X"
+    ticker = f"{fromCur.upper()}{toCur.upper()}=X"
     marketState = yf.Ticker(ticker).info["marketState"]
     if marketState != "REGULAR":
         price = yf.Ticker(ticker).history(period="1d").iloc[0, 3]
