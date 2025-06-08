@@ -1,7 +1,9 @@
-- (Intraday) See how to cache the data when market is closed
 
-- Create a register and login page
+2) user holdings & forex route
+    security & user -> holdings -> forex
+4) fundamental, statistical analyses
+    Fundamental: WACC, ROIC -> DCF for fair value
+    Statistical: ARIMA modelling, (Research more)
 
-- Make annual metrics endpoint
-
-- Look into WACC, ROIC
+5) database schemas (readme)
+6) type annotation checker (python)

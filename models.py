@@ -1,7 +1,15 @@
 from sqlalchemy import Column, Integer, String, Float, BigInteger
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
+from fastapi_users.db import SQLAlchemyBaseUserTable
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(SQLAlchemyBaseUserTable[int], Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
 
 
 class TickerEntry(Base):

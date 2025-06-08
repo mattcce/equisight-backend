@@ -19,6 +19,9 @@ from services import (
     getForex,
 )
 
+from auth import fastapi_users, cookie_auth_backend, current_active_user
+from schemas import UserCreate, UserRead, UserUpdate
+from models import User
 
 app = FastAPI()
 
@@ -41,13 +44,47 @@ def get_db():
         db.close()
 
 
+# Auth routes
+app.include_router(
+    fastapi_users.get_auth_router(cookie_auth_backend),
+    prefix="/auth/cookie",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"]
+)
+
+app.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+
 @app.get("/")
 async def root():
     return {"message": "Equisight Home Page!"}
 
 
 @app.get("/ticker/{ticker}/info")
-async def info(ticker: str, db: Session = Depends(get_db)):
+async def info(
+    ticker: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
     info = yf.Ticker(ticker).info
 
     exists = db.query(TickerInfo).filter(TickerInfo.ticker == ticker).first()
@@ -74,6 +111,7 @@ async def history(
         datetime.today().strftime("%Y-%m-%d"), description="End date in YYYY-MM-DD"
     ),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     ticker = ticker.upper()
     info = yf.Ticker(ticker).info
@@ -182,7 +220,11 @@ async def history(
 
 
 @app.get("/ticker/{ticker}/intraday")
-async def intraday(ticker: str, db: Session = Depends(get_db)):
+async def intraday(
+    ticker: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
     ticker = ticker.upper()
 
     info = yf.Ticker(ticker).info
@@ -325,7 +367,11 @@ async def intraday(ticker: str, db: Session = Depends(get_db)):
 
 
 @app.get("/ticker/{ticker}/quarterlymetrics")
-async def quarterly_metrics(ticker: str, db: Session = Depends(get_db)):
+async def quarterly_metrics(
+    ticker: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
     ticker = ticker.upper()
     try:
         ticker_data_obj = yf.Ticker(ticker)
@@ -359,7 +405,11 @@ async def quarterly_metrics(ticker: str, db: Session = Depends(get_db)):
 
 
 @app.get("/ticker/{ticker}/metrics")
-async def metrics(ticker: str, db: Session = Depends(get_db)):
+async def metrics(
+    ticker: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
     ticker = ticker.upper()
     try:
         ticker_data_obj = yf.Ticker(ticker)
@@ -392,7 +442,11 @@ async def metrics(ticker: str, db: Session = Depends(get_db)):
 
 # Usage: /news?count=INT (default to 10)
 @app.get("/ticker/{ticker}/news")
-async def news(ticker: str, count: int = Query(10, description="Number of articles")):
+async def news(
+    ticker: str,
+    count: int = Query(10, description="Number of articles"),
+    user: User = Depends(current_active_user),
+):
     ticker = ticker.upper()
 
     # Fetch News & Press Releases (List of Dicts)

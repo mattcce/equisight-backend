@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "exchange-calendars>=4.10.1",
+    "fastapi-users[jwt,sqlalchemy]>=14.0.1",
     "fastapi[standard]>=0.115.12",
     "passlib[bcrypt]>=1.7.4",
     "pre-commit>=4.2.0",
