@@ -51,7 +51,12 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 cookie_transport = CookieTransport(
     cookie_name="equisightauth",
     cookie_max_age=3600,
+<<<<<<< HEAD
     cookie_secure=False,  # for HTTP dev
+=======
+    cookie_secure=True,
+    cookie_httponly=True,
+>>>>>>> 0643791 (added authentication framework)
 )
 
 

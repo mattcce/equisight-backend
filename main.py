@@ -47,7 +47,11 @@ def get_db():
 # Auth routes
 app.include_router(
     fastapi_users.get_auth_router(cookie_auth_backend),
+<<<<<<< HEAD
     prefix="/auth/cookie",
+=======
+    prefix="/auth",
+>>>>>>> 0643791 (added authentication framework)
     tags=["auth"],
 )
 
