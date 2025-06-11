@@ -112,6 +112,11 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
 
+        # Temporary fix to ensure is_active, is_superuser, and is_verified cannot be specified by user
+        user_dict.pop("is_active", None)
+        user_dict.pop("is_superuser", None)
+        user_dict.pop("is_verified", None)
+
         if "email" not in user_dict:
             user_dict["email"] = user_create.email
         if "username" not in user_dict:
