@@ -10,6 +10,7 @@ class Base(DeclarativeBase):
 class User(SQLAlchemyBaseUserTable[int], Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
+    username = Column(String(length=20), unique=True, nullable=False)
 
 
 class TickerEntry(Base):
