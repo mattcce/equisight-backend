@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, status
 from fastapi_users import BaseUserManager, FastAPIUsers, IntegerIDMixin, exceptions
 from fastapi_users.authentication import (
     AuthenticationBackend,
@@ -14,7 +14,34 @@ from models import User
 from database import get_async_session
 from schemas import UserCreate
 
+from fastapi_users.password import PasswordHelper
+import re
+
 SECRET = "dev"
+
+
+class CustomPasswordHelper(PasswordHelper):
+    def validate(self, password: str):
+        if len(password) < 4:
+            raise exceptions.InvalidPasswordException(
+                reason="Password must be at least 4 characters long."
+            )
+        if not re.search(r"[A-Z]", password):
+            raise exceptions.InvalidPasswordException(
+                reason="Password must contain at least one uppercase letter."
+            )
+        if not re.search(r"[a-z]", password):
+            raise exceptions.InvalidPasswordException(
+                reason="Password must contain at least one lowercase letter."
+            )
+        if not re.search(r"\d", password):
+            raise exceptions.InvalidPasswordException(
+                reason="Password must contain at least one digit."
+            )
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise exceptions.InvalidPasswordException(
+                reason="Password must contain at least one special character."
+            )
 
 
 class CustomSQLAlchemyUserDatabase(SQLAlchemyUserDatabase[User, int]):
@@ -79,6 +106,18 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
         return user
 
+    async def validate_password(self, password: str, user_create: UserCreate):
+        try:
+            self.password_helper.validate(password)
+        except exceptions.InvalidPasswordException as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "REGISTER_INVALID_PASSWORD",
+                    "reason": e.reason or "The provided password is not valid.",
+                },
+            )
+
     # Check if username already exists
     async def create(
         self,
@@ -136,7 +175,7 @@ async def get_user_db(session: AsyncSession = Depends(get_async_session)):
 async def get_user_manager(
     user_db: CustomSQLAlchemyUserDatabase = Depends(get_user_db),
 ):
-    yield UserManager(user_db)
+    yield UserManager(user_db, password_helper=CustomPasswordHelper())
 
 
 cookie_transport = CookieTransport(
