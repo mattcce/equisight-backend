@@ -324,8 +324,12 @@ async def intraday(
                 .reset_index()
             )
 
+        # Timestamp belongs to previous trading day
+        else:
+            df = yf.Ticker(ticker).history(period="1d", interval="1m").reset_index()
+
     else:
-        # Timestamp belongs to previous trading day // No Data cached -> return full day data up to that point
+        # No Data cached -> return full day data up to that point
         df = yf.Ticker(ticker).history(period="1d", interval="1m").reset_index()
 
     for _, row in df.iterrows():
