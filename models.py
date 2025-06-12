@@ -30,6 +30,14 @@ class Intraday(Base):
     close = Column(Float)
 
 
+class Intraweek(Base):
+    __tablename__ = "intraweek_entries"
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, index=True)
+    timestamp = Column(BigInteger, index=True)
+    close = Column(Float)
+
+
 class TickerInfo(Base):
     __tablename__ = "ticker_info"
     id = Column(Integer, primary_key=True, index=True)

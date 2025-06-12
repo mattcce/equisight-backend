@@ -6,7 +6,7 @@ import numpy as np
 import schemas
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
-from models import TickerEntry, Intraday, TickerInfo
+from models import TickerEntry, Intraday, TickerInfo, Intraweek
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import exchange_calendars as xcals
@@ -16,6 +16,7 @@ from services import (
     get_and_store_annual_metrics,
     getExchangeHours,
     getExchangeISO,
+    getHoursWeek,
     getForex,
 )
 
@@ -363,6 +364,148 @@ async def intraday(
     result = {
         "marketOpen": exchangeHours["openTimestamp"],
         "marketClose": exchangeHours["closeTimestamp"],
+        "intraday": result,
+    }
+    return JSONResponse(content=result)
+
+
+@app.get("/ticker/{ticker}/intraweek")
+async def intraweek(
+    ticker: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
+    ticker = ticker.upper()
+
+    info = yf.Ticker(ticker).info
+    marketState = info["marketState"]
+    tznStr = info["exchangeTimezoneName"]
+    tz = ZoneInfo(tznStr)
+    now = datetime.now(tz)
+    exchangeISO = getExchangeISO(tznStr)
+    hoursDict = getHoursWeek(exchangeISO, now)
+
+    oldestOpen = hoursDict["oldestOpen"]
+    latestClose = hoursDict["latestClose"]
+
+    # Check if Market is closed, if so return most recent intraweek data
+    if marketState != "REGULAR":
+        closedDb = (
+            db.query(Intraweek)
+            .filter(Intraweek.ticker == ticker, Intraweek.timestamp >= oldestOpen)
+            .order_by(Intraweek.timestamp.desc())
+            .first()
+        )
+
+        df = pd.DataFrame()
+
+        if closedDb:
+            latestTimestamp = closedDb.timestamp
+            df = (
+                yf.Ticker(ticker)
+                .history(start=latestTimestamp + 1, interval="1h")
+                .reset_index()
+            )
+
+        else:
+            df = yf.Ticker(ticker).history(period="5d", interval="1h").reset_index()
+
+        for _, row in df.iterrows():
+            row_date = (
+                int(row["Datetime"].timestamp())
+                if hasattr(row["Datetime"], "date")
+                else row["Datetime"]
+            )
+
+            db_entry = Intraweek(
+                ticker=ticker, timestamp=row_date, close=float(row["Close"])
+            )
+            db.add(db_entry)
+        db.commit()
+
+        # Return all data from current trading day
+        all_entries = (
+            db.query(Intraweek)
+            .filter(
+                Intraweek.ticker == ticker,
+                Intraweek.timestamp >= oldestOpen,
+            )
+            .order_by(Intraweek.timestamp.desc())
+            .all()
+        )
+
+        result = [
+            {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
+            for e in all_entries
+        ]
+        result = {
+            "oldestOpen": oldestOpen,
+            "latestClose": latestClose,
+            "intraweek": result,
+        }
+        return JSONResponse(content=result)
+
+    # Market is Open
+    # Check if records are present
+    present = (
+        db.query(Intraweek)
+        .filter(Intraweek.ticker == ticker)
+        .order_by(Intraweek.timestamp.desc())
+        .first()
+    )
+
+    df = pd.DataFrame()
+
+    if present:
+        # Check last recorded timestamp
+        latestTimestamp = present.timestamp
+        # Timestamp belongs to current date -> return the difference
+        if hoursDict["oldestOpen"] <= latestTimestamp:
+            df = (
+                yf.Ticker(ticker)
+                .history(start=(latestTimestamp + 1), interval="1d")
+                .reset_index()
+            )
+
+        # Timestamp belongs to previous trading day
+        else:
+            df = yf.Ticker(ticker).history(period="5d", interval="1h").reset_index()
+
+    else:
+        # No Data cached -> return full day data up to that point
+        df = yf.Ticker(ticker).history(period="5d", interval="1h").reset_index()
+
+    for _, row in df.iterrows():
+        row_date = (
+            int(row["Datetime"].timestamp())
+            if hasattr(row["Datetime"], "date")
+            else row["Datetime"]
+        )
+
+        db_entry = Intraweek(
+            ticker=ticker, timestamp=row_date, close=float(row["Close"])
+        )
+        db.add(db_entry)
+    db.commit()
+
+    # Return all data from current trading day
+    all_entries = (
+        db.query(Intraweek)
+        .filter(
+            Intraweek.ticker == ticker,
+            Intraweek.timestamp >= hoursDict["oldestOpen"],
+        )
+        .order_by(Intraweek.timestamp.desc())
+        .all()
+    )
+
+    result = [
+        {"ticker": e.ticker, "timestamp": e.timestamp, "close": e.close}
+        for e in all_entries
+    ]
+    result = {
+        "oldestOpen": hoursDict["oldestOpen"],
+        "latestClose": hoursDict["latestClose"],
         "intraday": result,
     }
     return JSONResponse(content=result)

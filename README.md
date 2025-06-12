@@ -111,6 +111,30 @@ Returns basic information about a ticker.
 - If market is closed, it will return the intraday data from the latest trading day
 - Currently only tickers on US, Singapore, Hong Kong, London, and Tokyo Stock Exchanges are supported
 
+### Ticker Intraweek (Past 5 days) Data
+
+`GET /ticker/{ticker}/intraweek`
+
+**Response Example:**
+```json
+{
+  "oldestOpen": 1749216600,
+  "latestClose": 1749758400,
+  "intraday": [
+    {
+      "ticker": "AAPL",
+      "timestamp": 1749742200,
+      "close": 198.22000122070312
+    },
+    ...
+  ]
+}
+```
+
+**Note:**
+- If market is closed, it will return data for the past 5 trading days in 1h resolution
+- Currently only tickers on US, Singapore, Hong Kong, London, and Tokyo Stock Exchanges are supported
+
 
 ### Ticker Financial Metrics
 

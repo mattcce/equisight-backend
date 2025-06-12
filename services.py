@@ -36,6 +36,38 @@ def getExchangeHours(iso, dayStr):
     return {"openTimestamp": openTs, "closeTimestamp": closeTs}
 
 
+def getHoursWeek(iso, now):
+    xc = xcals.get_calendar(iso)
+    day = now.date()
+
+    latest_session = None
+    # Today is trading day
+    if xc.is_session(day):
+        mkt_open_tdy = xc.session_open(day)
+
+        if now < mkt_open_tdy:
+            latest_session = xc.previous_session(day)
+        else:
+            latest_session = day
+
+    # Today is not trading day
+    else:
+        latest_session = xc.date_to_session(day, direction="previous")
+
+    if latest_session is not None:
+        past_five_trading_days = xc.sessions_window(latest_session, -5)
+
+    oldest_day = past_five_trading_days[0]
+    latest_day = past_five_trading_days[-1]
+    oldest_open = xc.schedule.loc[oldest_day]["open"]
+    latest_close = xc.schedule.loc[latest_day]["close"]
+
+    return {
+        "oldestOpen": int(oldest_open.timestamp()),
+        "latestClose": int(latest_close.timestamp()),
+    }
+
+
 # Foreign Exchange Rates relative to SGD
 def getForex(fromCur, toCur):
     if fromCur.upper() == toCur.upper():
