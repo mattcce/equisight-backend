@@ -463,7 +463,9 @@ async def intraweek(
         if hoursDict["oldestOpen"] <= latestTimestamp:
             df = (
                 yf.Ticker(ticker)
-                .history(start=(latestTimestamp + 1), interval="1d")
+                .history(
+                    start=(latestTimestamp + 3599), interval="1h"
+                )  # Ensure no duplicates (threshold is 3541 for some reason)
                 .reset_index()
             )
 
