@@ -1,5 +1,12 @@
-from sqlalchemy import Column, Integer, String, Float, BigInteger
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    BigInteger,
+    ForeignKey,
+)
+from sqlalchemy.orm import DeclarativeBase, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTable
 
 
@@ -11,6 +18,25 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     username = Column(String(length=20), unique=True, nullable=False)
+    # Relatonships for user-specific endpoints
+    watchlist_entries = relationship(
+        "WatchlistEntry", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class WatchlistEntry(Base):
+    __tablename__ = "watchlist_entries"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ticker = Column(String, index=True, nullable=False)
+    direction = Column(String, nullable=False)
+    quantity = Column(Float, nullable=False)
+    unitCost = Column(Float, nullable=False)
+    createdAt = Column(BigInteger, index=True)
+
+    user = relationship("User", back_populates="watchlist_entries")
+    # For unique tickers
+    # __table_args__ = (UniqueConstraint("user_id", "ticker", name="_user_ticker_uc"),)
 
 
 class TickerEntry(Base):
