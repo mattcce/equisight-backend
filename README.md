@@ -200,6 +200,123 @@ Returns basic information about a ticker.
 }
 ```
 
+## User Specific Features
+
+### User Watchlist
+
+`GET /users/me/watchlist`
+
+**Response Example:**
+```json
+{
+  "identifier": "test",
+  "watchlist": {
+    "UNH": [
+      {
+        "direction": "SELL",
+        "quantity": 100.0,
+        "unitCost": 600.0,
+        "createdAt": 1749992396
+      },
+      {
+        "direction": "BUY",
+        "quantity": 100.56,
+        "unitCost": 300.45,
+        "createdAt": 1749992396
+      },
+      {
+        "direction": "SELL",
+        "quantity": 100.56,
+        "unitCost": 400.0,
+        "createdAt": 1749992396
+      },
+      ...
+    ],
+    "BRK-B": [] // Ticker watched with no positions
+  }
+}
+```
+
+`GET /users/me/watchlist/{ticker}`
+
+**Usage Example:** `/users/me/watchlist/UNH`
+
+**Response Example:**
+```json
+{
+  "positions": [
+    {
+      "direction": "SELL",
+      "quantity": 100.0,
+      "unitCost": 600.0,
+      "createdAt": 1749992396
+    },
+    ...
+  ]
+}
+```
+
+`POST /users/me/watchlist/{ticker}`
+
+**Description:** Adds a new position (BUY/SELL) for a ticker to the user's watchlist. If ticker is not watched, it will be added.
+
+**Request Example:**
+```json
+{
+  "direction": "BUY",
+  "quantity": 1,
+  "unitCost": 1
+}
+```
+
+**Response Example:**
+```json
+{
+  "direction": "BUY",
+  "quantity": 1,
+  "unitCost": 1,
+  "createdAt": 1750043545
+}
+```
+
+`PUT /users/me/watchlist/{ticker}`
+**Description:** Replaces all existing positions for ticker with new list of positions. If list is empty, ticker is watched with no active positions.
+
+**Request Example:**
+```json
+{
+  "positions": [
+    {
+      "direction": "BUY",
+      "quantity": 1,
+      "unitCost": 1
+    },
+    ...
+  ]
+}
+```
+
+**Response Example:**
+```json
+{
+  "positions": [
+    {
+      "direction": "BUY",
+      "quantity": 1,
+      "unitCost": 1,
+      "createdAt": 1750043941
+    },
+    ...
+  ]
+}
+```
+
+`DELETE /users/me/watchlist/{ticker}`
+**Description:** Removes a ticker and all its associated positions from the watchlist.
+
+**Response:** `204 No Content` on success.
+
+## Miscellaneous
 ### Foreign Exchange Rate
 
 `GET /forex`
@@ -219,3 +336,23 @@ Returns basic information about a ticker.
   "forexRate": 143.54200744628906
 }
 ```
+
+## Authentication
+The following authentication endpoints are available under the `/auth` prefix, largely provided by `fastapi-users`:
+
+*   **`POST /auth/login`**: Logs in a user.
+    *   Request Body: `OAuth2PasswordRequestForm` (expects `username` and `password` in form data).
+    *   Response: Sets an authentication cookie (`equisightauth`) and returns user information ([`schemas.UserRead`](schemas.py)).
+*   **`POST /auth/logout`**: Logs out a user.
+    *   Response: Clears the authentication cookie.
+*   **`POST /auth/register`**: Registers a new user.
+    *   Request Body: [`schemas.UserCreate`](schemas.py) (email, password, username).
+    *   Response: User information ([`schemas.UserRead`](schemas.py)).
+*   **`POST /auth/forgot-password`**: Requests a password reset token.
+    *   Request Body: Email of the user.
+*   **`POST /auth/reset-password`**: Resets the password using a token.
+    *   Request Body: Token and new password.
+*   **`POST /auth/request-verify-token`**: Requests an email verification token.
+    *   Request Body: Email of the user.
+*   **`POST /auth/verify`**: Verifies the user's email using a token.
+    *   Request Body: Verification token.
