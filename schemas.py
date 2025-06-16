@@ -19,7 +19,6 @@ class UserUpdate(schemas.BaseUserUpdate):
 
 
 class WatchlistEntryCreate(BaseModel):
-    ticker: str
     direction: Literal["BUY", "SELL"]
     quantity: float = Field(gt=0)
     unitCost: float = Field(gt=0)
