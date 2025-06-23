@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal, List, Dict
+from typing import Optional, Literal, List
 from fastapi_users import schemas
 
 
@@ -56,7 +56,7 @@ class UpdateTickerWatchlistRequest(BaseModel):
 
 class UserWatchlistResponse(BaseModel):
     identifier: str
-    watchlist: Dict[str, List[PositionOutputSchema]]
+    watchlist: List[str]
 
 
 class UserWatchlistTickerResponse(BaseModel):

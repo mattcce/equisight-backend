@@ -25,7 +25,6 @@ from services import (
 from auth import fastapi_users, cookie_auth_backend, current_active_user
 from schemas import UserCreate, UserRead, UserUpdate
 from models import User
-from collections import defaultdict
 
 SYSTEM_WATCH_DIRECTION = "SYSTEM_WATCH"
 SYSTEM_WATCH_QUANTITY = -1
@@ -671,24 +670,11 @@ async def get_user_watchlist(
     result = await db.execute(stmt)
     user_entries = result.scalars().all()
 
-    grouped_watchlist = defaultdict(list)
+    all_watched_tickers = list(set(entry.ticker for entry in user_entries))
 
-    all_watched_tickers = set(entry.ticker for entry in user_entries)
-    for ticker_symbol in all_watched_tickers:
-        grouped_watchlist[ticker_symbol] = []
-
-    for entry in user_entries:
-        if entry.direction != SYSTEM_WATCH_DIRECTION:
-            position = schemas.PositionOutputSchema(
-                direction=entry.direction,
-                quantity=entry.quantity,
-                unitCost=entry.unitCost,
-                createdAt=entry.createdAt,
-            )
-            grouped_watchlist[entry.ticker].append(position)
     return schemas.UserWatchlistResponse(
         identifier=current_user.username,
-        watchlist=dict(grouped_watchlist),
+        watchlist=all_watched_tickers,
     )
 
 
