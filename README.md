@@ -1,4 +1,54 @@
-# Endpoints
+## Overview
+This is a FastAPI-based backend service that provides financial data, including stock ticker information, historical data, news, and financial reports. It also features analysis features (coming soon) and user authentication with a personalized watchlist functionality.
+
+## Project Structure
+
+The project is organized into several key files:
+- `main.py`: The main application file that initializes the FastAPI app, includes middleware, and mounts the API routers.
+- `database.py`: Handles database connection (SQLite), session management (sync and async), and initialization.
+-   `models.py`: Contains all SQLAlchemy ORM models, defining the database table structures.
+-   `schemas.py`: Includes all Pydantic models used for data validation, serialization, and API request/response schemas.
+-   `services.py`: Holds the business logic, including fetching data from external APIs like `yfinance` and caching results in the database.
+-   `auth.py`: Manages user authentication, registration, and user management using `fastapi-users`.
+- `routers/`: A package containing the API routers for different parts of the application.
+    - `__init__.py`: Makes the `routers` directory a Python package.
+    - `ticker.py`: Contains all API endpoints related to ticker data (`/ticker/...`).
+    - `watchlist.py`: Contains all API endpoints for the user watchlist (`/users/me/watchlist/...`).
+    - `forex.py`: Contains the API endpoint for foreign exchange rates (`/forex`).
+
+## Architecture and Design
+### Architectural Overview
+Equisight backend follows a layered architecture common in modern web apps:
+- **Presentation Layer (`main.py`, `routers/`):** Build with FastAPI, responsible for handling HTTP requests, routing them to appropriate handlers, and managing request/response validation using Pydantic schemas from `schemas.py`
+- **Business Logic Layer (`services.py`, `auth.py`):** Contains core application logic. `services.py` handles fetching and caching of data from external sources. `auth.py` manages user authentication and session management using `fastapi-users`
+- **Data Access Layer (`database.py`, `models.py`):** Database interactions using SQLAlchemy as the ORM. `models.py` defines the database schema, while `database.py` manages database connection.
+- **External Services:** The application integrates `yfinance` to retrieve real-time and historical financial data.
+
+### Module Dependencies
+
+The following diagram illustrates the primary dependencies between the modules:
+
+```
+[main.py] -- (Defines Routes & App)
+ |
+ +--> [auth.py] -- (User Auth & Management)
+ |     |
+ |     +--> [database.py] (Async Session)
+ |     +--> [models.py] (User Model)
+ |     +--> [schemas.py] (User Schemas)
+ |
+ +--> [services.py] -- (Business Logic)
+ |     |
+ |     +--> (External: yfinance, xcals)
+ |     +--> [models.py] (Data Models)
+ |
+ +--> [database.py] -- (DB Connection & Session)
+ |
+ +--> [schemas.py] -- (Pydantic Models for Validation)
+```
+
+
+## Endpoints
 
 ## Ticker Data
 

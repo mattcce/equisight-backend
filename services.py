@@ -244,18 +244,7 @@ def get_and_store_quarterly_metrics(
             if gross_profit is not None and revenue is not None and revenue != 0
             else None
         )
-        roe = (
-            (net_income / shareholder_equity)
-            if net_income is not None
-            and shareholder_equity is not None
-            and shareholder_equity != 0
-            else None
-        )
-        roa = (
-            (net_income / total_assets)
-            if net_income is not None and total_assets is not None and total_assets != 0
-            else None
-        )
+
         debt_to_equity = (
             (total_liabilities / shareholder_equity)
             if total_liabilities is not None
@@ -279,8 +268,8 @@ def get_and_store_quarterly_metrics(
             "operatingCashFlow": operating_cf,
             "freeCashFlow": free_cash_flow,
             "grossMargin": gross_margin,
-            "roe": roe,
-            "roa": roa,
+            "roe": None,
+            "roa": None,
             "debtToEquity": debt_to_equity,
         }
 
