@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal, List, Dict
+from typing import Optional, Literal, List
 from fastapi_users import schemas
 
 
@@ -18,23 +18,19 @@ class UserUpdate(schemas.BaseUserUpdate):
     pass
 
 
-class WatchlistEntryCreate(BaseModel):
+class WatchlistTickersResponse(BaseModel):
+    identifier: str
+    tickers: List[str]
+
+
+class PositionCreate(BaseModel):
     direction: Literal["BUY", "SELL"]
     quantity: float = Field(gt=0)
     unitCost: float = Field(gt=0)
-
-
-class WatchlistEntryTicker(BaseModel):
-    direction: Literal["BUY", "SELL"]
-    quantity: float
-    unitCost: float
-    createdAt: int
-
-    class Config:
-        from_attributes = True
 
 
 class PositionOutputSchema(BaseModel):
+    id: int
     direction: Literal["BUY", "SELL"]
     quantity: float
     unitCost: float
@@ -44,22 +40,8 @@ class PositionOutputSchema(BaseModel):
         from_attributes = True
 
 
-class PositionInputSchema(BaseModel):
-    direction: Literal["BUY", "SELL"]
-    quantity: float = Field(gt=0)
-    unitCost: float = Field(gt=0)
-
-
-class UpdateTickerWatchlistRequest(BaseModel):
-    positions: List[PositionInputSchema]
-
-
-class UserWatchlistResponse(BaseModel):
-    identifier: str
-    watchlist: Dict[str, List[PositionOutputSchema]]
-
-
-class UserWatchlistTickerResponse(BaseModel):
+class TickerPositionsResponse(BaseModel):
+    ticker: str
     positions: List[PositionOutputSchema]
 
 

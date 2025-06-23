@@ -1,17 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 import yfinance as yf
 import schemas
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from database import get_async_session
 from datetime import datetime
-from models import User, WatchlistEntry
+from models import User, UserWatchlist, TickerPositions
 from auth import current_active_user
-from collections import defaultdict
-
-SYSTEM_WATCH_DIRECTION = "SYSTEM_WATCH"
-SYSTEM_WATCH_QUANTITY = -1
-SYSTEM_WATCH_UNITCOST = -1
+from typing import List
 
 
 router = APIRouter(prefix="/users/me/watchlist", tags=["watchlist"])
@@ -19,209 +15,220 @@ router = APIRouter(prefix="/users/me/watchlist", tags=["watchlist"])
 
 @router.get(
     "",
-    response_model=schemas.UserWatchlistResponse,
+    response_model=schemas.WatchlistTickersResponse,
 )
 async def get_user_watchlist(
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(current_active_user),
 ):
-    stmt = select(WatchlistEntry).where(WatchlistEntry.user_id == current_user.id)
+    stmt = select(UserWatchlist.ticker).where(UserWatchlist.user_id == current_user.id)
     result = await db.execute(stmt)
-    user_entries = result.scalars().all()
-
-    grouped_watchlist = defaultdict(list)
-
-    all_watched_tickers = set(entry.ticker for entry in user_entries)
-    for ticker_symbol in all_watched_tickers:
-        grouped_watchlist[ticker_symbol] = []
-
-    for entry in user_entries:
-        if entry.direction != SYSTEM_WATCH_DIRECTION:
-            position = schemas.PositionOutputSchema(
-                direction=entry.direction,
-                quantity=entry.quantity,
-                unitCost=entry.unitCost,
-                createdAt=entry.createdAt,
-            )
-            grouped_watchlist[entry.ticker].append(position)
-    return schemas.UserWatchlistResponse(
-        identifier=current_user.email,
-        watchlist=dict(grouped_watchlist),
+    tickers = result.scalars().all()
+    return schemas.WatchlistTickersResponse(
+        identifier=current_user.email, tickers=tickers
     )
 
 
-@router.delete("/{ticker_symbol}", status_code=204)
+@router.post(
+    "/{ticker_symbol}",
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_ticker_to_watchlist(
+    ticker_symbol: str,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+):
+    ticker = ticker_symbol.upper()
+
+    stmt_check = select(UserWatchlist).where(
+        UserWatchlist.user_id == current_user.id,
+        UserWatchlist.ticker == ticker,
+    )
+    result_check = await db.execute(stmt_check)
+    if result_check.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Ticker {ticker} already in watchlist.",
+        )
+
+    try:
+        yf.Ticker(ticker).info
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{ticker} is not a valid ticker.",
+        )
+
+    new_watchlist_entry = UserWatchlist(user_id=current_user.id, ticker=ticker)
+    db.add(new_watchlist_entry)
+    await db.commit()
+    return {"message": f"Ticker {ticker} added to watchlist."}
+
+
+@router.delete(
+    "/{ticker_symbol}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def remove_ticker_from_watchlist(
     ticker_symbol: str,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(current_active_user),
 ):
-    ticker_upper = ticker_symbol.upper()
+    ticker = ticker_symbol.upper()
 
-    check_stmt = (
-        select(WatchlistEntry)
-        .where(
-            (WatchlistEntry.user_id == current_user.id)
-            & (WatchlistEntry.ticker == ticker_upper)
-        )
-        .limit(1)
+    # Delete all positions associated with ticker for the user
+    delete_positions_stmt = delete(TickerPositions).where(
+        (TickerPositions.user_id == current_user.id)
+        & (TickerPositions.ticker == ticker)
     )
-    check_result = await db.execute(check_stmt)
-    if not check_result.scalars().first():
+    await db.execute(delete_positions_stmt)
+
+    delete_watchlist_stmt = delete(UserWatchlist).where(
+        (UserWatchlist.user_id == current_user.id) & (UserWatchlist.ticker == ticker)
+    )
+    result = await db.execute(delete_watchlist_stmt)
+
+    if result.rowcount == 0:
         raise HTTPException(
-            status_code=404, detail=f"Ticker {ticker_upper} not found in watchlist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticker {ticker} not found in watchlist.",
         )
 
-    delete_all_stmt = delete(WatchlistEntry).where(
-        (WatchlistEntry.user_id == current_user.id)
-        & (WatchlistEntry.ticker == ticker_upper)
-    )
-
-    await db.execute(delete_all_stmt)
     await db.commit()
 
 
 @router.get(
     "/{ticker_symbol}",
-    response_model=schemas.UserWatchlistTickerResponse,
+    response_model=schemas.TickerPositionsResponse,
 )
-async def get_ticker_watchlist(
+async def get_ticker_from_watchlist(
     ticker_symbol: str,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(current_active_user),
 ):
-    ticker_upper = ticker_symbol.upper()
+    ticker = ticker_symbol.upper()
 
-    stmt_check_watched = select(WatchlistEntry).where(
-        (WatchlistEntry.user_id == current_user.id)
-        & (WatchlistEntry.ticker == ticker_upper)
+    stmt_check = select(UserWatchlist).where(
+        (UserWatchlist.user_id == current_user.id) & (UserWatchlist.ticker == ticker)
     )
-    result_check_watched = await db.execute(stmt_check_watched)
-    if not result_check_watched.scalars().first():
+    result_check = await db.execute(stmt_check)
+    if not result_check.scalars().first():
         raise HTTPException(
-            status_code=400, detail=f"{ticker_upper} is not in your watchlist."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticker {ticker} not found in watchlist.",
         )
 
-    stmt_positions = select(WatchlistEntry).where(
-        WatchlistEntry.user_id == current_user.id,
-        WatchlistEntry.ticker == ticker_upper,
-        WatchlistEntry.direction != SYSTEM_WATCH_DIRECTION,
+    stmt_positions = select(TickerPositions).where(
+        (TickerPositions.user_id == current_user.id)
+        & (TickerPositions.ticker == ticker)
     )
     result_positions = await db.execute(stmt_positions)
-    ticker_items = result_positions.scalars().all()
+    positions = result_positions.scalars().all()
 
-    grouped_positions = []
-    for entry in ticker_items:
-        position = schemas.PositionOutputSchema(
-            direction=entry.direction,
-            quantity=entry.quantity,
-            unitCost=entry.unitCost,
-            createdAt=entry.createdAt,
-        )
-        grouped_positions.append(position)
-    return schemas.UserWatchlistTickerResponse(positions=grouped_positions)
-
-
-@router.put(
-    "/{ticker_symbol}",
-    response_model=schemas.UserWatchlistTickerResponse,
-)
-async def update_ticker_in_watchlist(
-    ticker_symbol: str,
-    request_body: schemas.UpdateTickerWatchlistRequest,
-    db: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(current_active_user),
-):
-    ticker_upper = ticker_symbol.upper()
-
-    delete_stmt = delete(WatchlistEntry).where(
-        (WatchlistEntry.user_id == current_user.id)
-        & (WatchlistEntry.ticker == ticker_upper)
-    )
-
-    await db.execute(delete_stmt)
-
-    new_positions_db = []
-    if request_body.positions:
-        try:
-            yf.Ticker(ticker_upper).info
-        except Exception:
-            await db.rollback()
-            raise HTTPException(
-                status_code=400, detail=f"{ticker_upper} is not a valid ticker."
-            )
-
-        for position_data in request_body.positions:
-            db_watchlist_entry = WatchlistEntry(
-                user_id=current_user.id,
-                ticker=ticker_upper,
-                direction=position_data.direction,
-                quantity=position_data.quantity,
-                unitCost=position_data.unitCost,
-                createdAt=int(datetime.now().timestamp()),
-            )
-            db.add(db_watchlist_entry)
-            new_positions_db.append(db_watchlist_entry)
-    else:
-        try:
-            yf.Ticker(ticker_upper).info
-        except Exception:
-            await db.rollback()
-            raise HTTPException(
-                status_code=400, detail=f"{ticker_upper} is not a valid ticker."
-            )
-        placeholder_entry = WatchlistEntry(
-            user_id=current_user.id,
-            ticker=ticker_upper,
-            direction=SYSTEM_WATCH_DIRECTION,
-            quantity=SYSTEM_WATCH_QUANTITY,
-            unitCost=SYSTEM_WATCH_UNITCOST,
-            createdAt=int(datetime.now().timestamp()),
-        )
-        db.add(placeholder_entry)
-
-    await db.commit()
-
-    response_positions = []
-    for entry in new_positions_db:
-        await db.refresh(entry)
-        response_positions.append(schemas.PositionOutputSchema.model_validate(entry))
-
-    return schemas.UserWatchlistTickerResponse(positions=response_positions)
+    return schemas.TickerPositionsResponse(ticker=ticker, positions=positions)
 
 
 @router.post(
-    "/{ticker_symbol}",
-    response_model=schemas.WatchlistEntryTicker,
+    "/{ticker_symbol}/positions",
+    response_model=List[schemas.PositionOutputSchema],
+    status_code=status.HTTP_201_CREATED,
 )
-async def add_ticker_to_watchlist(
+async def add_positions_to_ticker(
     ticker_symbol: str,
-    watchlist_item_create: schemas.WatchlistEntryCreate,
+    positions: List[schemas.PositionCreate],
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(current_active_user),
 ):
-    ticker_upper = ticker_symbol.upper()
-    direction = watchlist_item_create.direction
-    quantity = watchlist_item_create.quantity
-    unitCost = watchlist_item_create.unitCost
-    createdAt = int(datetime.now().timestamp())
+    ticker = ticker_symbol.upper()
 
-    try:
-        yf.Ticker(ticker_upper).info
-    except Exception:
+    stmt_check = select(UserWatchlist).where(
+        UserWatchlist.user_id == current_user.id,
+        UserWatchlist.ticker == ticker,
+    )
+    result_check = await db.execute(stmt_check)
+    if not result_check.scalars().first():
         raise HTTPException(
-            status_code=400, detail=f"{ticker_upper} is not a valid ticker"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticker {ticker} not found in watchlist.",
         )
 
-    db_watchlist_entry = WatchlistEntry(
-        user_id=current_user.id,
-        ticker=ticker_upper,
-        direction=direction,
-        quantity=quantity,
-        unitCost=unitCost,
-        createdAt=createdAt,
-    )
-    db.add(db_watchlist_entry)
+    new_db_positions = []
+    for pos in positions:
+        new_pos = TickerPositions(
+            user_id=current_user.id,
+            ticker=ticker,
+            direction=pos.direction,
+            quantity=pos.quantity,
+            unitCost=pos.unitCost,
+            createdAt=int(datetime.now().timestamp()),
+        )
+        new_db_positions.append(new_pos)
+
+    db.add_all(new_db_positions)
     await db.commit()
-    await db.refresh(db_watchlist_entry)
-    return db_watchlist_entry
+
+    for pos in new_db_positions:
+        await db.refresh(pos)
+
+    return new_db_positions
+
+
+@router.delete(
+    "/{ticker_symbol}/positions/{positions_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_ticker_position(
+    ticker_symbol: str,
+    position_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+):
+    ticker = ticker_symbol.upper()
+    stmt = delete(TickerPositions).where(
+        TickerPositions.id == position_id,
+        TickerPositions.user_id == current_user.id,
+        TickerPositions.ticker == ticker,
+    )
+    result = await db.execute(stmt)
+
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Position not found."
+        )
+
+    await db.commit()
+
+
+@router.put(
+    "/{ticker_symbol}/positions/{positions_id}",
+    response_model=schemas.PositionOutputSchema,
+)
+async def update_ticker_position(
+    ticker_symbol: str,
+    position_id: int,
+    position_data: schemas.PositionCreate,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+):
+    ticker = ticker_symbol.upper()
+
+    stmt = select(TickerPositions).where(
+        TickerPositions.id == position_id,
+        TickerPositions.user_id == current_user.id,
+        TickerPositions.ticker == ticker,
+    )
+    result = await db.execute(stmt)
+    db_position = result.scalars().first()
+
+    if not db_position:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Position not found."
+        )
+
+    db_position.direction = position_data.direction
+    db_position.quantity = position_data.quantity
+    db_position.unitCost = position_data.unitCost
+
+    await db.commit()
+    await db.refresh(db_position)
+    return db_position

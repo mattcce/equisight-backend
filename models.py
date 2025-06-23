@@ -5,6 +5,7 @@ from sqlalchemy import (
     Float,
     BigInteger,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTable
@@ -19,13 +20,27 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     id = Column(Integer, primary_key=True)
     # username = Column(String(length=20), unique=True, nullable=False)
     # Relatonships for user-specific endpoints
-    watchlist_entries = relationship(
-        "WatchlistEntry", back_populates="user", cascade="all, delete-orphan"
+    watchlist = relationship(
+        "UserWatchlist", back_populates="user", cascade="all, delete-orphan"
+    )
+    positions = relationship(
+        "TickerPositions", back_populates="user", cascade="all, delete-orphan"
     )
 
 
-class WatchlistEntry(Base):
-    __tablename__ = "watchlist_entries"
+class UserWatchlist(Base):
+    __tablename__ = "watchlists"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ticker = Column(String, index=True, nullable=False)
+
+    user = relationship("User", back_populates="watchlist")
+
+    __table_args__ = (UniqueConstraint("user_id", "ticker", name="_user_ticker_uc"),)
+
+
+class TickerPositions(Base):
+    __tablename__ = "positions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     ticker = Column(String, index=True, nullable=False)
@@ -34,9 +49,7 @@ class WatchlistEntry(Base):
     unitCost = Column(Float, nullable=False)
     createdAt = Column(BigInteger, index=True)
 
-    user = relationship("User", back_populates="watchlist_entries")
-    # For unique tickers
-    # __table_args__ = (UniqueConstraint("user_id", "ticker", name="_user_ticker_uc"),)
+    user = relationship("User", back_populates="positions")
 
 
 class TickerEntry(Base):
