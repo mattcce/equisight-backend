@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 class User(SQLAlchemyBaseUserTable[int], Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    username = Column(String(length=20), unique=True, nullable=False)
+    # username = Column(String(length=20), unique=True, nullable=False)
     # Relatonships for user-specific endpoints
     watchlist_entries = relationship(
         "WatchlistEntry", back_populates="user", cascade="all, delete-orphan"

@@ -6,10 +6,8 @@ from fastapi_users.authentication import (
     CookieTransport,
     JWTStrategy,
 )
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from models import User
 from database import get_async_session
 from schemas import UserCreate
@@ -45,9 +43,10 @@ class CustomPasswordHelper(PasswordHelper):
 
 
 class CustomSQLAlchemyUserDatabase(SQLAlchemyUserDatabase[User, int]):
-    async def get_by_username(self, username: str) -> Optional[User]:
-        statement = select(self.user_table).where(self.user_table.username == username)
-        return await self._get_user(statement)
+    pass
+    # async def get_by_username(self, username: str) -> Optional[User]:
+    #     statement = select(self.user_table).where(self.user_table.username == username)
+    #     return await self._get_user(statement)
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
@@ -66,45 +65,43 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
-        print(
-            f"Verification token requested for user {user.id} (Email: {user.email}, Username: {user.username})."
-        )
+        print(f"Verification token requested for user {user.id} (Email: {user.email}).")
         print(f"Generated verficiation token: {token}")
         # TODO: Implement sending the verification email to user.email with token
 
     async def on_after_verify(self, user: User, request: Optional[Request] = None):
         print(
-            f"User {user.id} (Email: {user.email}, Username: {user.username} has successfully verified their email.)"
+            f"User {user.id} (Email: {user.email} has successfully verified their email.)"
         )
 
-    # Uses username to find the user
-    async def authenticate(
-        self, credentials: OAuth2PasswordRequestForm
-    ) -> Optional[User]:
-        if not isinstance(self.user_db, CustomSQLAlchemyUserDatabase):
-            raise RuntimeError(
-                "User DB not an instance of CustomSQLAlchemyUserDatabase"
-            )
+    # # Uses username to find the user
+    # async def authenticate(
+    #     self, credentials: OAuth2PasswordRequestForm
+    # ) -> Optional[User]:
+    #     if not isinstance(self.user_db, CustomSQLAlchemyUserDatabase):
+    #         raise RuntimeError(
+    #             "User DB not an instance of CustomSQLAlchemyUserDatabase"
+    #         )
 
-        user = await self.user_db.get_by_username(credentials.username)
+    #     user = await self.user_db.get_by_username(credentials.username)
 
-        if user is None:
-            return None
+    #     if user is None:
+    #         return None
 
-        if not user.is_active:
-            return None
+    #     if not user.is_active:
+    #         return None
 
-        verified, updated_password_hash = self.password_helper.verify_and_update(
-            credentials.password, user.hashed_password
-        )
+    #     verified, updated_password_hash = self.password_helper.verify_and_update(
+    #         credentials.password, user.hashed_password
+    #     )
 
-        if not verified:
-            return None
+    #     if not verified:
+    #         return None
 
-        if updated_password_hash is not None:
-            await self.user_db.update(user, {"hashed password": updated_password_hash})
+    #     if updated_password_hash is not None:
+    #         await self.user_db.update(user, {"hashed password": updated_password_hash})
 
-        return user
+    #     return user
 
     async def validate_password(self, password: str, user_create: UserCreate):
         try:
@@ -118,54 +115,54 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
                 },
             )
 
-    # Check if username already exists
-    async def create(
-        self,
-        user_create: UserCreate,
-        safe: bool = False,
-        request: Optional[Request] = None,
-    ) -> User:
-        await self.validate_password(user_create.password, user_create)
+    # # Check if username already exists
+    # async def create(
+    #     self,
+    #     user_create: UserCreate,
+    #     safe: bool = False,
+    #     request: Optional[Request] = None,
+    # ) -> User:
+    #     await self.validate_password(user_create.password, user_create)
 
-        existing_user_by_email = await self.user_db.get_by_email(user_create.email)
-        if existing_user_by_email is not None:
-            raise exceptions.UserAlreadyExists()
+    #     existing_user_by_email = await self.user_db.get_by_email(user_create.email)
+    #     if existing_user_by_email is not None:
+    #         raise exceptions.UserAlreadyExists()
 
-        if not isinstance(self.user_db, CustomSQLAlchemyUserDatabase):
-            raise RuntimeError(
-                "User DB is not an instance of CustomSQLAlchemyUserDatabase"
-            )
-        existing_user_by_email = await self.user_db.get_by_username(
-            user_create.username
-        )
-        if existing_user_by_email is not None:
-            raise HTTPException(
-                status_code=400, detail="REGISTER_USERNAME_ALREADY_EXISTS"
-            )
+    #     if not isinstance(self.user_db, CustomSQLAlchemyUserDatabase):
+    #         raise RuntimeError(
+    #             "User DB is not an instance of CustomSQLAlchemyUserDatabase"
+    #         )
+    #     existing_user_by_email = await self.user_db.get_by_username(
+    #         user_create.username
+    #     )
+    #     if existing_user_by_email is not None:
+    #         raise HTTPException(
+    #             status_code=400, detail="REGISTER_USERNAME_ALREADY_EXISTS"
+    #         )
 
-        user_dict = (
-            user_create.create_update_dict()
-            if safe
-            else user_create.create_update_dict_superuser()
-        )
-        password = user_dict.pop("password")
-        user_dict["hashed_password"] = self.password_helper.hash(password)
+    #     user_dict = (
+    #         user_create.create_update_dict()
+    #         if safe
+    #         else user_create.create_update_dict_superuser()
+    #     )
+    #     password = user_dict.pop("password")
+    #     user_dict["hashed_password"] = self.password_helper.hash(password)
 
-        # Temporary fix to ensure is_active, is_superuser, and is_verified cannot be specified by user
-        user_dict.pop("is_active", None)
-        user_dict.pop("is_superuser", None)
-        user_dict.pop("is_verified", None)
+    #     # Temporary fix to ensure is_active, is_superuser, and is_verified cannot be specified by user
+    #     user_dict.pop("is_active", None)
+    #     user_dict.pop("is_superuser", None)
+    #     user_dict.pop("is_verified", None)
 
-        if "email" not in user_dict:
-            user_dict["email"] = user_create.email
-        if "username" not in user_dict:
-            user_dict["username"] = user_create.username
+    #     if "email" not in user_dict:
+    #         user_dict["email"] = user_create.email
+    #     if "username" not in user_dict:
+    #         user_dict["username"] = user_create.username
 
-        created_user = await self.user_db.create(user_dict)
+    #     created_user = await self.user_db.create(user_dict)
 
-        await self.on_after_register(created_user, request)
+    #     await self.on_after_register(created_user, request)
 
-        return created_user
+    #     return created_user
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
