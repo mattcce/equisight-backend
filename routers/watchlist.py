@@ -173,6 +173,37 @@ async def add_positions_to_ticker(
     return new_db_positions
 
 
+@router.get(
+    "/{ticker_symbol}/positions",
+    response_model=schemas.TickerPositionsResponse,
+)
+async def get_positions_from_ticker(
+    ticker_symbol: str,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+):
+    ticker = ticker_symbol.upper()
+
+    stmt_check = select(UserWatchlist).where(
+        (UserWatchlist.user_id == current_user.id) & (UserWatchlist.ticker == ticker)
+    )
+    result_check = await db.execute(stmt_check)
+    if not result_check.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticker {ticker} not found in watchlist.",
+        )
+
+    stmt_positions = select(TickerPositions).where(
+        (TickerPositions.user_id == current_user.id)
+        & (TickerPositions.ticker == ticker)
+    )
+    result_positions = await db.execute(stmt_positions)
+    positions = result_positions.scalars().all()
+
+    return schemas.TickerPositionsResponse(ticker=ticker, positions=positions)
+
+
 @router.delete(
     "/{ticker_symbol}/positions/{positions_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -232,3 +263,48 @@ async def update_ticker_position(
     await db.commit()
     await db.refresh(db_position)
     return db_position
+
+
+@router.get(
+    "/{ticker_symbol}/positions/{positions_id}",
+    response_model=schemas.PositionOutputSchema,
+)
+async def get_position_from_id(
+    ticker_symbol: str,
+    positions_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(current_active_user),
+):
+    ticker = ticker_symbol.upper()
+
+    stmt_check = select(UserWatchlist).where(
+        (UserWatchlist.user_id == current_user.id) & (UserWatchlist.ticker == ticker)
+    )
+    result_check = await db.execute(stmt_check)
+    if not result_check.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticker {ticker} not found in watchlist.",
+        )
+
+    stmt_positions = select(TickerPositions).where(
+        (TickerPositions.user_id == current_user.id)
+        & (TickerPositions.ticker == ticker)
+        & (TickerPositions.id == positions_id)
+    )
+    result_positions = await db.execute(stmt_positions)
+    position = result_positions.scalars().first()
+
+    if not position:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Position {positions_id} for {ticker} not found in watchlist.",
+        )
+
+    return schemas.PositionOutputSchema(
+        id=position.id,
+        direction=position.direction,
+        quantity=position.quantity,
+        unitCost=position.unitCost,
+        createdAt=position.createdAt,
+    )
