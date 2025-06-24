@@ -11,7 +11,6 @@ The project is organized into several key files:
 -   `services.py`: Holds the business logic, including fetching data from external APIs like `yfinance` and caching results in the database.
 -   `auth.py`: Manages user authentication, registration, and user management using `fastapi-users`.
 - `routers/`: A package containing the API routers for different parts of the application.
-    - `__init__.py`: Makes the `routers` directory a Python package.
     - `ticker.py`: Contains all API endpoints related to ticker data (`/ticker/...`).
     - `watchlist.py`: Contains all API endpoints for the user watchlist (`/users/me/watchlist/...`).
     - `forex.py`: Contains the API endpoint for foreign exchange rates (`/forex`).
@@ -29,22 +28,41 @@ Equisight backend follows a layered architecture common in modern web apps:
 The following diagram illustrates the primary dependencies between the modules:
 
 ```
-[main.py] -- (Defines Routes & App)
- |
- +--> [auth.py] -- (User Auth & Management)
- |     |
- |     +--> [database.py] (Async Session)
- |     +--> [models.py] (User Model)
- |     +--> [schemas.py] (User Schemas)
- |
- +--> [services.py] -- (Business Logic)
- |     |
- |     +--> (External: yfinance, xcals)
- |     +--> [models.py] (Data Models)
- |
- +--> [database.py] -- (DB Connection & Session)
- |
- +--> [schemas.py] -- (Pydantic Models for Validation)
++----------------------------------+
+|    main.py (FastAPI App)         |
+|  - Initializes DB                |
+|  - Mounts Routers                |
++----------------------------------+
+              |
+              v
++----------------------------------+
+|    routers/ (API Endpoints)      |
+|  - watchlist.py, ticker.py, ...  |
++----------------------------------+
+      |        |           |
+      |        |           +--------------------+
+      |        |                                |
+      v        v                                v
++----------------+                     +----------------------+
+|  services.py   |                     |       auth.py        |
+| (Business Logic) |                     | (Auth & User Mgmt)   |
++----------------+                     +----------------------+
+      |        |                                |
+      |        +-----------------+--------------+
+      |                          |
+      v                          v
++----------------+     +----------------+     +----------------+
+|   yfinance     |     |   database.py  |     |    models.py   |
+|  (External)    |     |  (DB Session)  |     |   (ORM Tables) |
++----------------+     +----------------+     +----------------+
+                                 ^                    ^
+                                 |                    |
+                                 +--------------------+
+                                 |
+                         +----------------+
+                         |   schemas.py   |
+                         | (Pydantic Models)|
+                         +----------------+
 ```
 
 
@@ -210,8 +228,8 @@ Returns basic information about a ticker.
       "operatingCashFlow": 23952000000.0,
       "freeCashFlow": 20881000000.0,
       "grossMargin": 0.47050619238876246,
-      "roe": 0.3709802982214504,
-      "roa": 0.07481138654663032,
+      "roe": null,
+      "roa": null,
       "debtToEquity": 3.958874782921133
     },
     ...
@@ -259,33 +277,26 @@ Returns basic information about a ticker.
 **Response Example:**
 ```json
 {
-  "identifier": "test",
-  "watchlist": {
-    "UNH": [
-      {
-        "direction": "SELL",
-        "quantity": 100.0,
-        "unitCost": 600.0,
-        "createdAt": 1749992396
-      },
-      {
-        "direction": "BUY",
-        "quantity": 100.56,
-        "unitCost": 300.45,
-        "createdAt": 1749992396
-      },
-      {
-        "direction": "SELL",
-        "quantity": 100.56,
-        "unitCost": 400.0,
-        "createdAt": 1749992396
-      },
-      ...
-    ],
-    "BRK-B": [] // Ticker watched with no positions
-  }
+  "identifier": "user@example.com",
+  "tickers": [
+    "MA",
+    "UNH",
+    "V"
+  ]
 }
 ```
+
+`POST /users/me/watchlist/{ticker}`
+
+**Description:** Adds a ticker to the user's watchlist. Empty request body.
+
+**Response:** `201 Created` on success.
+
+
+`DELETE /users/me/watchlist/{ticker}`
+**Description:** Removes a ticker and all its associated positions from the watchlist.
+
+**Response:** `204 No Content` on success.
 
 `GET /users/me/watchlist/{ticker}`
 
@@ -294,77 +305,77 @@ Returns basic information about a ticker.
 **Response Example:**
 ```json
 {
+  "ticker": "UNH",
   "positions": [
     {
-      "direction": "SELL",
-      "quantity": 100.0,
-      "unitCost": 600.0,
-      "createdAt": 1749992396
+      "id": 18,
+      "direction": "BUY",
+      "quantity": 2.0,
+      "unitCost": 300.0,
+      "createdAt": 1750696547
     },
     ...
   ]
 }
 ```
+`POST /users/me/watchlist/{ticker}/positions`
 
-`POST /users/me/watchlist/{ticker}`
+**Description:** Adds one or more new positions for a ticker that is already in the user's watchlist.
 
-**Description:** Adds a new position (BUY/SELL) for a ticker to the user's watchlist. If ticker is not watched, it will be added.
+**Request Example:**
+```json
+[
+  {
+    "direction": "SELL",
+    "quantity": 5,
+    "unitCost": 500.00
+  }
+]
+```
+
+**Response Example:**
+```json
+[
+  {
+    "id": 2,
+    "direction": "SELL",
+    "quantity": 5,
+    "unitCost": 500.00,
+    "createdAt": 1750044120
+  }
+]
+```
+
+`PUT /users/me/watchlist/{ticker}/positions/{positionId}`
+
+**Description:** Updates/overrides an existing position, identified by its unique `positionId`.
 
 **Request Example:**
 ```json
 {
   "direction": "BUY",
-  "quantity": 1,
-  "unitCost": 1
+  "quantity": 20,
+  "unitCost": 825.50
 }
 ```
 
 **Response Example:**
 ```json
 {
+  "id": 1,
   "direction": "BUY",
-  "quantity": 1,
-  "unitCost": 1,
+  "quantity": 20,
+  "unitCost": 825.50,
   "createdAt": 1750043545
 }
 ```
 
-`PUT /users/me/watchlist/{ticker}`
-**Description:** Replaces all existing positions for ticker with new list of positions. If list is empty, ticker is watched with no active positions.
+`DELETE /users/me/watchlist/{ticker}/positions/{positionId}`
 
-**Request Example:**
-```json
-{
-  "positions": [
-    {
-      "direction": "BUY",
-      "quantity": 1,
-      "unitCost": 1
-    },
-    ...
-  ]
-}
-```
-
-**Response Example:**
-```json
-{
-  "positions": [
-    {
-      "direction": "BUY",
-      "quantity": 1,
-      "unitCost": 1,
-      "createdAt": 1750043941
-    },
-    ...
-  ]
-}
-```
-
-`DELETE /users/me/watchlist/{ticker}`
-**Description:** Removes a ticker and all its associated positions from the watchlist.
+**Description:** Deletes a specific position by its `positionId`.
 
 **Response:** `204 No Content` on success.
+
 
 ## Miscellaneous
 ### Foreign Exchange Rate
