@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Literal, List
 from fastapi_users import schemas
 
@@ -30,14 +30,13 @@ class PositionCreate(BaseModel):
 
 
 class PositionOutputSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     direction: Literal["BUY", "SELL"]
     quantity: float
     unitCost: float
     createdAt: int
-
-    class Config:
-        from_attributes = True
 
 
 class TickerPositionsResponse(BaseModel):

@@ -7,7 +7,6 @@ from database import get_async_session
 from datetime import datetime
 from models import User, UserWatchlist, TickerPositions
 from auth import current_active_user
-from typing import List
 
 
 router = APIRouter(prefix="/users/me/watchlist", tags=["watchlist"])
@@ -130,12 +129,12 @@ async def get_ticker_from_watchlist(
 
 @router.post(
     "/{ticker_symbol}/positions",
-    response_model=List[schemas.PositionOutputSchema],
+    response_model=schemas.PositionOutputSchema,
     status_code=status.HTTP_201_CREATED,
 )
 async def add_positions_to_ticker(
     ticker_symbol: str,
-    positions: List[schemas.PositionCreate],
+    position: schemas.PositionCreate,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(current_active_user),
 ):
@@ -152,25 +151,20 @@ async def add_positions_to_ticker(
             detail=f"Ticker {ticker} not found in watchlist.",
         )
 
-    new_db_positions = []
-    for pos in positions:
-        new_pos = TickerPositions(
-            user_id=current_user.id,
-            ticker=ticker,
-            direction=pos.direction,
-            quantity=pos.quantity,
-            unitCost=pos.unitCost,
-            createdAt=int(datetime.now().timestamp()),
-        )
-        new_db_positions.append(new_pos)
+    new_pos = TickerPositions(
+        user_id=current_user.id,
+        ticker=ticker,
+        direction=position.direction,
+        quantity=position.quantity,
+        unitCost=position.unitCost,
+        createdAt=int(datetime.now().timestamp()),
+    )
 
-    db.add_all(new_db_positions)
+    db.add(new_pos)
     await db.commit()
 
-    for pos in new_db_positions:
-        await db.refresh(pos)
-
-    return new_db_positions
+    await db.refresh(new_pos)
+    return new_pos
 
 
 @router.get(
