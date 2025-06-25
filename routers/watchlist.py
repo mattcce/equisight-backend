@@ -199,7 +199,7 @@ async def get_positions_from_ticker(
 
 
 @router.delete(
-    "/{ticker_symbol}/positions/{positions_id}",
+    "/{ticker_symbol}/positions/{position_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_ticker_position(
@@ -225,7 +225,7 @@ async def delete_ticker_position(
 
 
 @router.put(
-    "/{ticker_symbol}/positions/{positions_id}",
+    "/{ticker_symbol}/positions/{position_id}",
     response_model=schemas.PositionOutputSchema,
 )
 async def update_ticker_position(
@@ -260,7 +260,7 @@ async def update_ticker_position(
 
 
 @router.get(
-    "/{ticker_symbol}/positions/{positions_id}",
+    "/{ticker_symbol}/positions/{position_id}",
     response_model=schemas.PositionOutputSchema,
 )
 async def get_position_from_id(
