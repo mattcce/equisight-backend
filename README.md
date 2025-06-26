@@ -1,3 +1,4 @@
+# API Overview
 ## Overview
 This is a FastAPI-based backend service that provides financial data, including stock ticker information, historical data, news, and financial reports. It also features analysis features (coming soon) and user authentication with a personalized watchlist functionality.
 
@@ -272,7 +273,8 @@ Returns basic information about a ticker.
 
 ### User Watchlist
 
-`GET /users/me/watchlist`
+`GET /users/me/watchlist` (UNFINISHED)
+**Description:** Returns positions and other details that user specifies about a watched ticker.
 
 **Response Example:**
 ```json
@@ -324,27 +326,46 @@ Returns basic information about a ticker.
 
 **Request Example:**
 ```json
-[
-  {
-    "direction": "SELL",
-    "quantity": 5,
-    "unitCost": 500.00
-  }
-]
+{
+  "direction": "SELL",
+  "quantity": 5,
+  "unitCost": 500.00
+}
 ```
 
 **Response Example:**
 ```json
-[
-  {
-    "id": 2,
-    "direction": "SELL",
-    "quantity": 5,
-    "unitCost": 500.00,
-    "createdAt": 1750044120
-  }
-]
+{
+  "id": 2,
+  "direction": "SELL",
+  "quantity": 5,
+  "unitCost": 500.00,
+  "createdAt": 1750044120
+}
 ```
+
+`GET /users/me/watchlist/{ticker}/positions`
+
+**Description:** Returns all positions that a user has in a watched ticker.
+
+**Usage Example:** `/users/me/watchlist/UNH`
+
+**Response Example:**
+```json
+{
+  "ticker": "UNH",
+  "positions": [
+    {
+      "id": 18,
+      "direction": "BUY",
+      "quantity": 2.0,
+      "unitCost": 300.0,
+      "createdAt": 1750696547
+    },
+    ...
+  ]
+}
+
 
 `PUT /users/me/watchlist/{ticker}/positions/{positionId}`
 
@@ -371,6 +392,21 @@ Returns basic information about a ticker.
 ```
 
 `DELETE /users/me/watchlist/{ticker}/positions/{positionId}`
+
+`GET /users/me/watchlist/{ticker}/positions/{positionId}`
+
+**Description:** Outputs a particular position in a watched ticker by position ID.
+
+**Response Example:**
+```json
+{
+  "id": 1,
+  "direction": "BUY",
+  "quantity": 20,
+  "unitCost": 825.50,
+  "createdAt": 1750043545
+}
+```
 
 **Description:** Deletes a specific position by its `positionId`.
 
