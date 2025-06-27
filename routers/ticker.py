@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -30,21 +30,30 @@ async def info(
     db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    info = yf.Ticker(ticker).info
+    try:
+        info = yf.Ticker(ticker).info
 
-    stmt = select(TickerInfo).filter(TickerInfo.ticker == ticker)
-    result = await db.execute(stmt)
-    exists = result.scalars().first()
+        stmt = select(TickerInfo).filter(TickerInfo.ticker == ticker)
+        result = await db.execute(stmt)
+        exists = result.scalars().first()
 
-    if not exists:
-        # For caching of timezone info
-        data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
-        db.add(TickerInfo(**data))
-        db.commit()
+        if not exists:
+            # For caching of timezone info
+            data = {
+                "ticker": ticker,
+                "exchangeTimezoneName": info["exchangeTimezoneName"],
+            }
+            db.add(TickerInfo(**data))
+            await db.commit()
 
-    filtered_info = schemas.TickerInfo(**info)
+        filtered_info = schemas.TickerInfo(**info)
 
-    return filtered_info
+        return filtered_info
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Invalid ticker: {ticker}"
+        )
 
 
 # Usage: /history?start=YYYY-MM-DD&end=YYYY-MM-DD (Default to 1mo from current date)
@@ -73,7 +82,7 @@ async def history(
         info = yf.Ticker(ticker).info
         data = {"ticker": ticker, "exchangeTimezoneName": info["exchangeTimezoneName"]}
         db.add(TickerInfo(**data))
-        db.commit()
+        await db.commit()
         tz = ZoneInfo(info["exchangeTimezoneName"])
 
     start_date = int(
