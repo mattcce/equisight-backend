@@ -365,6 +365,7 @@ Returns basic information about a ticker.
     ...
   ]
 }
+```
 
 
 `PUT /users/me/watchlist/{ticker}/positions/{positionId}`
