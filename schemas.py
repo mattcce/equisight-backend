@@ -53,7 +53,20 @@ class TickerInfo(BaseModel):
     region: Optional[str]
     currency: Optional[str]
     previousClose: Optional[float]
-    # marketCap: Optional[int] = None
-    # sector: Optional[str] = None
-    # industry: Optional[str] = None
-    # longBusinessSummary: Optional[str]
+
+
+class FundamentalOutput(BaseModel):
+    symbol: str
+    costOfEquity: float
+    costOfDebt: float
+    wacc: float
+    roic: float
+    expectedGrowthRate: float
+    fairValue: float
+
+
+class ImpliedGrowthOutput(BaseModel):
+    symbol: str
+    wacc: float
+    impliedGrowthRate: float
+    grahamValue: float

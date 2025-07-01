@@ -11,3 +11,6 @@ wheels/
 
 # Databases
 *.db
+
+# CSV File
+analysis/fundamental/crp.csv
