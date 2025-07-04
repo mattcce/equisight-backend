@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, validator
 from typing import Optional, Literal, List
 from fastapi_users import schemas
+from datetime import date
 
 
 class UserRead(schemas.BaseUser[int]):
@@ -70,3 +71,72 @@ class ImpliedGrowthOutput(BaseModel):
     wacc: float
     impliedGrowthRate: float
     grahamValue: float
+
+
+class BacktestRequest(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol (e.g., AAPL, GOOGL)")
+    purchase_date: date = Field(
+        ..., description="Historical purchase date (YYYY-MM-DD)"
+    )
+    investment_type: Literal["lump_sum", "dca"] = Field(
+        ..., description="Investment type: lump_sum or dca"
+    )
+    lump_sum_amount: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Lump sum investment amount (required if investment_type is lump_sum)",
+    )
+    dca_amount: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Amount to invest per DCA period (required if investment_type is dca)",
+    )
+    dca_frequency: Optional[Literal["weekly", "monthly", "yearly"]] = Field(
+        default=None, description="DCA frequency (required if investment_type is dca)"
+    )
+
+    @validator("purchase_date")
+    def validate_purchase_date(cls, v):
+        if v >= date.today():
+            raise ValueError("Purchase date must be in the past")
+        return v
+
+    @validator("lump_sum_amount")
+    def validate_lump_sum_amount(cls, v, values):
+        if values.get("investment_type") == "lump_sum" and not v:
+            raise ValueError(
+                "Lump sum amount is required when investment_type is lump_sum"
+            )
+        return v
+
+    @validator("dca_amount")
+    def validate_dca_amount(cls, v, values):
+        if values.get("investment_type") == "dca" and not v:
+            raise ValueError("DCA amount is required when investment_type is dca")
+        return v
+
+    @validator("dca_frequency")
+    def validate_dca_frequency(cls, v, values):
+        if values.get("investment_type") == "dca" and not v:
+            raise ValueError("DCA frequency is required when investment_type is dca")
+        return v
+
+
+class BacktestResponse(BaseModel):
+    ticker: str
+    purchaseDate: date
+    currentDate: date
+    investmentType: str
+    lumpSumAmount: Optional[float]
+    dcaAmount: Optional[float]
+    dcaFrequency: Optional[str]
+    totalInvested: float
+    totalSharesPurchased: float
+    averagePurchasePrice: float
+    currentPrice: float
+    currentValue: float
+    totalReturn: float
+    totalReturnPercentage: float
+    annualizedReturn: float
+    daysHeld: int
+    numberOfPurchases: int
