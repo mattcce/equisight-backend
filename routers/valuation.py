@@ -78,7 +78,8 @@ async def fairValue(
 
     except Exception:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Invalid ticker: {ticker}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Not enough information for ticker: {ticker}",
         )
 
 

@@ -115,13 +115,13 @@ def get_avg_netCapex(income, cashflow, balance):
         ts_next = cashflow.columns[i + 1]
         rd = income[ts].get("Research And Development")
         rd = 0 if rd is None or isinstance(rd, float) and np.isnan(rd) else rd
-        acquisition = -cashflow[ts].get("Purchase Of Business")
+        acquisition = cashflow[ts].get("Purchase Of Business")
         acquisition = (
             0
             if acquisition is None
             or isinstance(acquisition, float)
             and np.isnan(acquisition)
-            else acquisition
+            else -acquisition
         )
         # print("RD: ", rd)
         # print("Acquisition: ", acquisition)
@@ -149,7 +149,8 @@ def get_avg_payout_ratio(income_stmt, cashflow):
         ts = income_stmt.columns[i]
         ni = income_stmt[ts].get("Net Income")
         # dil_shares = income_stmt[ts].get("Diluted Average Shares")
-        dpr = -cashflow[ts].get("Cash Dividends Paid") / ni
+        cash_paid = cashflow[ts].get("Cash Dividends Paid") or 0
+        dpr = -cash_paid / ni
         sum += dpr
 
     return sum / 4
@@ -624,8 +625,8 @@ def fair_value(ticker, period_of_high_growth, period_of_stable_growth):
                 0.05,
             )
 
-        fair_value_of_firm = value["Value"]
-        expected_growth = value["Expected Growth"]
+    fair_value_of_firm = value["Value"]
+    expected_growth = value["Expected Growth"] * 100
 
     return {
         "Ticker": ticker,
@@ -635,7 +636,7 @@ def fair_value(ticker, period_of_high_growth, period_of_stable_growth):
         "ROIC": roic,
         "ROC": roc,
         "Fair Value": fair_value_of_firm,
-        "Expected Growth Rate": expected_growth * 100,
+        "Expected Growth Rate": expected_growth,
     }
 
 
