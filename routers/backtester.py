@@ -115,51 +115,51 @@ async def get_historical_data(
 @router.get("/calculate-return/{ticker}")
 async def calculate_backtest_return_get(
     ticker: str,
-    purchase_date: date = Query(
+    purchaseDate: date = Query(
         ..., description="Historical purchase date (YYYY-MM-DD)"
     ),
-    investment_type: Literal["lump_sum", "dca"] = Query(
-        ..., description="Investment type: lump_sum or dca"
+    investmentType: Literal["lumpSum", "dca"] = Query(
+        ..., description="Investment type: lumpSum or dca"
     ),
-    lump_sum_amount: Optional[float] = Query(
-        default=None,
+    lumpSumAmount: Optional[float] = Query(
+        default=1000,
         gt=0,
-        description="Lump sum investment amount (required if investment_type is lump_sum)",
+        description="Lump sum investment amount (required if investmentType is lumpSum)",
     ),
-    dca_amount: Optional[float] = Query(
-        default=None,
+    dcaAmount: Optional[float] = Query(
+        default=100,
         gt=0,
-        description="Amount to invest per DCA period (required if investment_type is dca)",
+        description="Amount to invest per DCA period (required if investmentType is dca)",
     ),
-    dca_frequency: Optional[Literal["weekly", "monthly", "yearly"]] = Query(
-        default=None, description="DCA frequency (required if investment_type is dca)"
+    dcaFrequency: Optional[Literal["weekly", "monthly", "yearly"]] = Query(
+        default=None, description="DCA frequency (required if investmentType is dca)"
     ),
     db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     try:
         # Validate input parameters
-        if investment_type == "lump_sum" and not lump_sum_amount:
+        if investmentType == "lumpSum" and not lumpSumAmount:
             raise HTTPException(
                 status_code=400,
-                detail="lump_sum_amount is required when investment_type is lump_sum",
+                detail="lumpSumAmount is required when investmentType is lumpSum",
             )
 
-        if investment_type == "dca" and (not dca_amount or not dca_frequency):
+        if investmentType == "dca" and (not dcaAmount or not dcaFrequency):
             raise HTTPException(
                 status_code=400,
-                detail="dca_amount and dca_frequency are required when investment_type is dca",
+                detail="dcaAmount and dcaFrequency are required when investmentType is dca",
             )
 
         # Get historical data from database/yfinance
         historical_data = await get_historical_data(
-            ticker, purchase_date, date.today(), db
+            ticker, purchaseDate, date.today(), db
         )
 
         if not historical_data:
             raise HTTPException(
                 status_code=404,
-                detail=f"No data found for ticker {ticker} from {purchase_date} to today",
+                detail=f"No data found for ticker {ticker} from {purchaseDate} to today",
             )
 
         # Sort timestamps
@@ -171,22 +171,22 @@ async def calculate_backtest_return_get(
         total_invested = 0
         number_of_purchases = 0
 
-        if investment_type == "dca":
+        if investmentType == "dca":
             # Dollar Cost Averaging
             purchase_dates = []
 
             # Generate purchase dates based on frequency
-            current_date = purchase_date
+            current_date = purchaseDate
             end_date_obj = date.today()
 
             while current_date <= end_date_obj:
                 purchase_dates.append(current_date)
 
-                if dca_frequency == "weekly":
+                if dcaFrequency == "weekly":
                     current_date += pd.DateOffset(weeks=1)
-                elif dca_frequency == "monthly":
+                elif dcaFrequency == "monthly":
                     current_date += pd.DateOffset(months=1)
-                elif dca_frequency == "yearly":
+                elif dcaFrequency == "yearly":
                     current_date += pd.DateOffset(years=1)
 
                 current_date = current_date.date()
@@ -213,10 +213,10 @@ async def calculate_backtest_return_get(
 
                 if closest_timestamp:
                     purchase_price = historical_data[closest_timestamp]
-                    shares_bought = dca_amount / purchase_price
+                    shares_bought = dcaAmount / purchase_price
 
                     total_shares += shares_bought
-                    total_invested += dca_amount
+                    total_invested += dcaAmount
                     number_of_purchases += 1
 
             if number_of_purchases == 0:
@@ -230,7 +230,7 @@ async def calculate_backtest_return_get(
         else:
             # Lump sum investment
             purchase_timestamp = int(
-                datetime.combine(purchase_date, datetime.min.time()).timestamp()
+                datetime.combine(purchaseDate, datetime.min.time()).timestamp()
             )
 
             # Find the closest available price
@@ -246,12 +246,12 @@ async def calculate_backtest_return_get(
             if not closest_timestamp:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"No price data available for {ticker} near {purchase_date}",
+                    detail=f"No price data available for {ticker} near {purchaseDate}",
                 )
 
             purchase_price = historical_data[closest_timestamp]
-            total_shares = lump_sum_amount / purchase_price
-            total_invested = lump_sum_amount
+            total_shares = lumpSumAmount / purchase_price
+            total_invested = lumpSumAmount
             average_purchase_price = purchase_price
             number_of_purchases = 1
 
@@ -261,7 +261,7 @@ async def calculate_backtest_return_get(
         total_return_percentage = (total_return / total_invested) * 100
 
         # Calculate days held and annualized return
-        days_held = (date.today() - purchase_date).days
+        days_held = (date.today() - purchaseDate).days
         years_held = days_held / 365.25
 
         if years_held > 0:
@@ -273,12 +273,12 @@ async def calculate_backtest_return_get(
 
         return schemas.BacktestResponse(
             ticker=ticker.upper(),
-            purchaseDate=purchase_date,
+            purchaseDate=purchaseDate,
             currentDate=date.today(),
-            investmentType=investment_type,
-            lumpSumAmount=lump_sum_amount,
-            dcaAmount=dca_amount,
-            dcaFrequency=dca_frequency,
+            investmentType=investmentType,
+            lumpSumAmount=lumpSumAmount,
+            dcaAmount=dcaAmount,
+            dcaFrequency=dcaFrequency,
             totalInvested=round(total_invested, 2),
             totalSharesPurchased=round(total_shares, 4),
             averagePurchasePrice=round(average_purchase_price, 2),

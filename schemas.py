@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict, validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Literal, List
 from fastapi_users import schemas
 from datetime import date
@@ -75,47 +75,45 @@ class ImpliedGrowthOutput(BaseModel):
 
 class BacktestRequest(BaseModel):
     ticker: str = Field(..., description="Stock ticker symbol (e.g., AAPL, GOOGL)")
-    purchase_date: date = Field(
-        ..., description="Historical purchase date (YYYY-MM-DD)"
+    purchaseDate: date = Field(..., description="Historical purchase date (YYYY-MM-DD)")
+    investmentType: Literal["lumpSum", "dca"] = Field(
+        ..., description="Investment type: lumpSum or dca"
     )
-    investment_type: Literal["lump_sum", "dca"] = Field(
-        ..., description="Investment type: lump_sum or dca"
-    )
-    lump_sum_amount: Optional[float] = Field(
+    lumpSumAmount: Optional[float] = Field(
         default=None,
         gt=0,
         description="Lump sum investment amount (required if investment_type is lump_sum)",
     )
-    dca_amount: Optional[float] = Field(
+    dcaAmount: Optional[float] = Field(
         default=None,
         gt=0,
         description="Amount to invest per DCA period (required if investment_type is dca)",
     )
-    dca_frequency: Optional[Literal["weekly", "monthly", "yearly"]] = Field(
+    dcaFrequency: Optional[Literal["weekly", "monthly", "yearly"]] = Field(
         default=None, description="DCA frequency (required if investment_type is dca)"
     )
 
-    @validator("purchase_date")
+    @field_validator("purchaseDate")
     def validate_purchase_date(cls, v):
         if v >= date.today():
             raise ValueError("Purchase date must be in the past")
         return v
 
-    @validator("lump_sum_amount")
+    @field_validator("lumpSumAmount")
     def validate_lump_sum_amount(cls, v, values):
-        if values.get("investment_type") == "lump_sum" and not v:
+        if values.get("investment_type") == "lumpSum" and not v:
             raise ValueError(
-                "Lump sum amount is required when investment_type is lump_sum"
+                "Lump sum amount is required when investment_type is lumpSum"
             )
         return v
 
-    @validator("dca_amount")
+    @field_validator("dcaAmount")
     def validate_dca_amount(cls, v, values):
         if values.get("investment_type") == "dca" and not v:
             raise ValueError("DCA amount is required when investment_type is dca")
         return v
 
-    @validator("dca_frequency")
+    @field_validator("dcaFrequency")
     def validate_dca_frequency(cls, v, values):
         if values.get("investment_type") == "dca" and not v:
             raise ValueError("DCA frequency is required when investment_type is dca")

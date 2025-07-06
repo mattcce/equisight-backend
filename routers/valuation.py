@@ -88,14 +88,14 @@ async def fairValue(
 async def grahamValue(
     ticker: str,
     terminal: float = Query(5, description="Terminal Growth Rate"),
-    high: int = Query(10, description="High Growth Period"),
+    growth: int = Query(10, description="Growth Period"),
     user: User = Depends(current_active_user),
 ):
     ticker = ticker.upper()
     terminal_rate = terminal / 100
 
     try:
-        output = reverse_dcf(ticker, terminal_rate, high)
+        output = reverse_dcf(ticker, terminal_rate, growth)
         filtered_output = schemas.ImpliedGrowthOutput(
             symbol=output["Ticker"],
             wacc=output["WACC"] * 100,
