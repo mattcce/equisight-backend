@@ -140,3 +140,21 @@ class BacktestResponse(BaseModel):
     annualizedReturn: float
     daysHeld: int
     numberOfPurchases: int
+
+
+class UserPreferencesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    currency: str
+
+
+class UserPreferencesUpdate(BaseModel):
+    currency: str = Field(
+        ...,
+        min_length=3,
+        max_length=3,
+        description="Currency code (e.g. SGD, USD, EUR)",
+    )
+
+    class Config:
+        json_schema_extra = {"example": {"currency": "USD"}}

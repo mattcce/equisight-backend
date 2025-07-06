@@ -85,6 +85,19 @@ def getForex(fromCur, toCur):
     return price
 
 
+def isCurrency(cur):
+    if cur == "USD":
+        return True
+    ticker = f"{cur.upper()}USD=X"
+
+    try:
+        yf.Ticker(ticker).history(period="1d")
+    except Exception:
+        return False
+
+    return True
+
+
 # Convert NaN to None
 def safe_get_metric(statement_series, key):
     value = statement_series.get(key)

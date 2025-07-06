@@ -26,6 +26,12 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     positions = relationship(
         "TickerPositions", back_populates="user", cascade="all, delete-orphan"
     )
+    preferences = relationship(
+        "UserPreferences",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class UserWatchlist(Base):
@@ -142,3 +148,12 @@ class AnnualMetrics(Base):
     roe = Column(Float, nullable=True)
     roa = Column(Float, nullable=True)
     debtToEquity = Column(Float, nullable=True)
+
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    currency = Column(String, nullable=False, default="USD")
+
+    user = relationship("User", back_populates="preferences")
