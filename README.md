@@ -535,7 +535,7 @@ DCA:
   "costOfDebt": 4.354000049591065,
   "wacc": 9.063600258375969,
   "roic": 55.53285888608812,
-  "expectedGrowthRate": 0.1344863730741724,
+  "expectedGrowthRate": 13.448637307417242,
   "fairValue": 194.36087124469228
 }
 ```
