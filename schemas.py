@@ -149,8 +149,8 @@ class UserPreferencesRead(BaseModel):
 class UserPreferencesUpdate(BaseModel):
     currency: str = Field(
         ...,
-        min_length=3,
-        max_length=3,
+        # min_length=3,
+        # max_length=3,
         description="Currency code (e.g. SGD, USD, EUR)",
     )
 

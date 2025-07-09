@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from auth import current_active_user
 from models import User
@@ -16,6 +16,11 @@ async def forex(
 ):
     fromCur = fromCur.upper()
     toCur = toCur.upper()
-    exchangeRate = getForex(fromCur, toCur)
+    try:
+        exchangeRate = getForex(fromCur, toCur)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid currency"
+        )
     result = {"fromCurrency": fromCur, "toCurrency": toCur, "forexRate": exchangeRate}
     return JSONResponse(content=result)
