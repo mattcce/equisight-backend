@@ -91,7 +91,7 @@ def isCurrency(cur):
     ticker = f"{cur.upper()}USD=X"
 
     try:
-        yf.Ticker(ticker).history(period="1d")
+        yf.Ticker(ticker).info
     except Exception:
         return False
 
