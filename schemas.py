@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Literal, List
 from fastapi_users import schemas
+from datetime import date
 
 
 class UserRead(schemas.BaseUser[int]):
@@ -53,7 +54,105 @@ class TickerInfo(BaseModel):
     region: Optional[str]
     currency: Optional[str]
     previousClose: Optional[float]
-    # marketCap: Optional[int] = None
-    # sector: Optional[str] = None
-    # industry: Optional[str] = None
-    # longBusinessSummary: Optional[str]
+
+
+class FundamentalOutput(BaseModel):
+    symbol: str
+    costOfEquity: float
+    costOfDebt: float
+    wacc: float
+    roic: float
+    expectedGrowthRate: float
+    fairValue: float
+
+
+class ImpliedGrowthOutput(BaseModel):
+    symbol: str
+    wacc: float
+    impliedGrowthRate: float
+    grahamValue: float
+
+
+class BacktestRequest(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol (e.g., AAPL, GOOGL)")
+    purchaseDate: date = Field(..., description="Historical purchase date (YYYY-MM-DD)")
+    investmentType: Literal["lumpSum", "dca"] = Field(
+        ..., description="Investment type: lumpSum or dca"
+    )
+    lumpSumAmount: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Lump sum investment amount (required if investment_type is lump_sum)",
+    )
+    dcaAmount: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Amount to invest per DCA period (required if investment_type is dca)",
+    )
+    dcaFrequency: Optional[Literal["weekly", "monthly", "yearly"]] = Field(
+        default=None, description="DCA frequency (required if investment_type is dca)"
+    )
+
+    @field_validator("purchaseDate")
+    def validate_purchase_date(cls, v):
+        if v >= date.today():
+            raise ValueError("Purchase date must be in the past")
+        return v
+
+    @field_validator("lumpSumAmount")
+    def validate_lump_sum_amount(cls, v, values):
+        if values.get("investment_type") == "lumpSum" and not v:
+            raise ValueError(
+                "Lump sum amount is required when investment_type is lumpSum"
+            )
+        return v
+
+    @field_validator("dcaAmount")
+    def validate_dca_amount(cls, v, values):
+        if values.get("investment_type") == "dca" and not v:
+            raise ValueError("DCA amount is required when investment_type is dca")
+        return v
+
+    @field_validator("dcaFrequency")
+    def validate_dca_frequency(cls, v, values):
+        if values.get("investment_type") == "dca" and not v:
+            raise ValueError("DCA frequency is required when investment_type is dca")
+        return v
+
+
+class BacktestResponse(BaseModel):
+    ticker: str
+    purchaseDate: date
+    currentDate: date
+    investmentType: str
+    lumpSumAmount: Optional[float]
+    dcaAmount: Optional[float]
+    dcaFrequency: Optional[str]
+    totalInvested: float
+    totalSharesPurchased: float
+    averagePurchasePrice: float
+    currentPrice: float
+    currentValue: float
+    totalReturn: float
+    totalReturnPercentage: float
+    annualizedReturn: float
+    daysHeld: int
+    numberOfPurchases: int
+
+
+class UserPreferencesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    currency: str
+
+
+class UserPreferencesUpdate(BaseModel):
+    currency: str = Field(
+        ...,
+        # min_length=3,
+        # max_length=3,
+        description="Currency code (e.g. SGD, USD, EUR)",
+    )
+
+    class Config:
+        json_schema_extra = {"example": {"currency": "USD"}}

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from auth import fastapi_users, cookie_auth_backend
 from schemas import UserCreate, UserRead, UserUpdate
-from routers import ticker, watchlist, forex
+from routers import ticker, valuation, watchlist, forex, backtester, user
 
 app = FastAPI()
 
@@ -56,3 +56,6 @@ async def root():
 app.include_router(ticker.router)
 app.include_router(watchlist.router)
 app.include_router(forex.router)
+app.include_router(valuation.router)
+app.include_router(backtester.router)
+app.include_router(user.router)
