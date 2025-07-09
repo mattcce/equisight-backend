@@ -24,7 +24,7 @@ async def get_user_preferences(
 
     if not preferences:
         # Create default preferences if they don't exist
-        preferences = schemas.UserPreferences(user_id=current_user.id, currency="USD")
+        preferences = UserPreferences(user_id=current_user.id, currency="USD")
         db.add(preferences)
         await db.commit()
         await db.refresh(preferences)
@@ -54,9 +54,7 @@ async def update_user_preferences(
 
     if not preferences:
         # Create new preferences if they don't exist
-        preferences = schemas.UserPreferences(
-            user_id=current_user.id, currency=currency
-        )
+        preferences = UserPreferences(user_id=current_user.id, currency=currency)
         db.add(preferences)
     else:
         # Update existing preferences
