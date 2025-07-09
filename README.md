@@ -123,6 +123,30 @@ Returns basic information about a ticker.
 }
 ```
 
+` GET /ticker/{ticker}/all-time`
+
+**Description:** All time historical data in daily resolution
+
+**Response Example:**
+
+```json
+{
+  "ticker": "AAPL",
+  "totalDays": 11232,
+  "earliestDate": 345445200,
+  "latestDate": 1751947200,
+  "allTimeHistory": [
+    {
+      "ticker": "AAPL",
+      "timestamp": 345445200,
+      "close": 0.09859661757946014,
+      "volume": 469033600
+    },
+    ...
+  ]
+}
+```
+
 ### Ticker News & Press Releases
 
 `GET /ticker/{ticker}/news`
