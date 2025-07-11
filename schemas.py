@@ -76,7 +76,7 @@ class ImpliedGrowthOutput(BaseModel):
 class BacktestRequest(BaseModel):
     ticker: str = Field(..., description="Stock ticker symbol (e.g., AAPL, GOOGL)")
     purchaseDate: date = Field(..., description="Historical purchase date (YYYY-MM-DD)")
-    investmentType: Literal["lumpSum", "dca"] = Field(
+    investmentType: Literal["lumpSum", "dca", "lumpSumDca"] = Field(
         ..., description="Investment type: lumpSum or dca"
     )
     lumpSumAmount: Optional[float] = Field(
@@ -101,7 +101,7 @@ class BacktestRequest(BaseModel):
 
     @field_validator("lumpSumAmount")
     def validate_lump_sum_amount(cls, v, values):
-        if values.get("investment_type") == "lumpSum" and not v:
+        if values.get("investment_type") in ["lumpSum", "lumpSumDca"] and not v:
             raise ValueError(
                 "Lump sum amount is required when investment_type is lumpSum"
             )

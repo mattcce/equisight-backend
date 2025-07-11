@@ -119,8 +119,8 @@ async def calculate_backtest_return_get(
         ..., description="Historical purchase date (YYYY-MM-DD)"
     ),
     sellDate: date = Query(..., description="Sell date (YYYY-MM-DD)"),
-    investmentType: Literal["lumpSum", "dca"] = Query(
-        ..., description="Investment type: lumpSum or dca"
+    investmentType: Literal["lumpSum", "dca", "lumpSumDca"] = Query(
+        ..., description="Investment type: lumpSum, dca or lumpSumDca"
     ),
     lumpSumAmount: Optional[float] = Query(
         default=1000,
@@ -152,6 +152,14 @@ async def calculate_backtest_return_get(
                 detail="dcaAmount and dcaFrequency are required when investmentType is dca",
             )
 
+        if investmentType == "lumpSumDca" and (
+            not lumpSumAmount or not dcaAmount or not dcaFrequency
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="lumpSumAmount, dcaAmount, and dcaFrequency are required when investmentType is lumpSumDca",
+            )
+
         # Validate that sellDate is not in the future
         if sellDate > date.today():
             raise HTTPException(
@@ -172,7 +180,7 @@ async def calculate_backtest_return_get(
         if not historical_data:
             raise HTTPException(
                 status_code=404,
-                detail=f"No data found for ticker {ticker} from {purchaseDate} to today",
+                detail=f"No data found for ticker {ticker} from {purchaseDate} to {sellDate}",
             )
 
         # Sort timestamps
@@ -237,6 +245,94 @@ async def calculate_backtest_return_get(
                     status_code=400,
                     detail="No valid purchase dates found for DCA strategy",
                 )
+
+            average_purchase_price = total_invested / total_shares
+
+        elif investmentType == "lumpSumDca":
+            # Lump Sum + DCA combination
+
+            # 1. Execute initial lump sum investment
+            purchase_timestamp = int(
+                datetime.combine(purchaseDate, datetime.min.time()).timestamp()
+            )
+
+            # Find the closest available price for lump sum
+            closest_timestamp = None
+            min_diff = float("inf")
+
+            for ts in sorted_timestamps:
+                diff = abs(ts - purchase_timestamp)
+                if diff < min_diff:
+                    min_diff = diff
+                    closest_timestamp = ts
+
+            if not closest_timestamp:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No price data available for {ticker} near {purchaseDate}",
+                )
+
+            # Initial lump sum purchase
+            lump_sum_price = historical_data[closest_timestamp]
+            lump_sum_shares = lumpSumAmount / lump_sum_price
+            total_shares += lump_sum_shares
+            total_invested += lumpSumAmount
+            number_of_purchases += 1
+
+            # 2. Execute DCA strategy starting from the next period
+            purchase_dates = []
+            current_date = purchaseDate
+
+            # Calculate the first DCA date based on frequency
+            if dcaFrequency == "weekly":
+                current_date += pd.DateOffset(weeks=1)
+            elif dcaFrequency == "monthly":
+                current_date += pd.DateOffset(months=1)
+            elif dcaFrequency == "yearly":
+                current_date += pd.DateOffset(years=1)
+
+            current_date = current_date.date()
+            end_date_obj = sellDate
+
+            # Generate subsequent DCA purchase dates
+            while current_date <= end_date_obj:
+                purchase_dates.append(current_date)
+
+                if dcaFrequency == "weekly":
+                    current_date += pd.DateOffset(weeks=1)
+                elif dcaFrequency == "monthly":
+                    current_date += pd.DateOffset(months=1)
+                elif dcaFrequency == "yearly":
+                    current_date += pd.DateOffset(years=1)
+
+                current_date = current_date.date()
+
+            # Execute DCA purchases
+            for purchase_date_item in purchase_dates:
+                purchase_timestamp = int(
+                    datetime.combine(
+                        purchase_date_item, datetime.min.time()
+                    ).timestamp()
+                )
+
+                # Find the nearest available price within 7 days
+                closest_timestamp = None
+                min_diff = float("inf")
+
+                for ts in sorted_timestamps:
+                    diff = abs(ts - purchase_timestamp)
+                    if diff <= 7 * 24 * 60 * 60:  # Within 7 days
+                        if diff < min_diff:
+                            min_diff = diff
+                            closest_timestamp = ts
+
+                if closest_timestamp:
+                    purchase_price = historical_data[closest_timestamp]
+                    shares_bought = dcaAmount / purchase_price
+
+                    total_shares += shares_bought
+                    total_invested += dcaAmount
+                    number_of_purchases += 1
 
             average_purchase_price = total_invested / total_shares
 
