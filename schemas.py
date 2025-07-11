@@ -122,8 +122,9 @@ class BacktestRequest(BaseModel):
 
 class BacktestResponse(BaseModel):
     ticker: str
+    currency: str
     purchaseDate: date
-    currentDate: date
+    sellDate: date
     investmentType: str
     lumpSumAmount: Optional[float]
     dcaAmount: Optional[float]
@@ -131,13 +132,14 @@ class BacktestResponse(BaseModel):
     totalInvested: float
     totalSharesPurchased: float
     averagePurchasePrice: float
-    currentPrice: float
-    currentValue: float
+    sellPrice: float
+    sellValue: float
     totalReturn: float
     totalReturnPercentage: float
     annualizedReturn: float
     daysHeld: int
     numberOfPurchases: int
+    timestamp: int
 
 
 class UserPreferencesRead(BaseModel):

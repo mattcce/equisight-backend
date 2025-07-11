@@ -118,6 +118,7 @@ async def calculate_backtest_return_get(
     purchaseDate: date = Query(
         ..., description="Historical purchase date (YYYY-MM-DD)"
     ),
+    sellDate: date = Query(..., description="Sell date (YYYY-MM-DD)"),
     investmentType: Literal["lumpSum", "dca"] = Query(
         ..., description="Investment type: lumpSum or dca"
     ),
@@ -151,10 +152,22 @@ async def calculate_backtest_return_get(
                 detail="dcaAmount and dcaFrequency are required when investmentType is dca",
             )
 
+        # Validate that sellDate is not in the future
+        if sellDate > date.today():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sell date ({sellDate}) cannot be in the future. Current date is {date.today()}",
+            )
+
+        # Validate that sellDate is not before purchaseDate
+        if sellDate < purchaseDate:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sell date ({sellDate}) cannot be before purchase date ({purchaseDate})",
+            )
+
         # Get historical data from database/yfinance
-        historical_data = await get_historical_data(
-            ticker, purchaseDate, date.today(), db
-        )
+        historical_data = await get_historical_data(ticker, purchaseDate, sellDate, db)
 
         if not historical_data:
             raise HTTPException(
@@ -177,7 +190,7 @@ async def calculate_backtest_return_get(
 
             # Generate purchase dates based on frequency
             current_date = purchaseDate
-            end_date_obj = date.today()
+            end_date_obj = sellDate
 
             while current_date <= end_date_obj:
                 purchase_dates.append(current_date)
@@ -261,7 +274,7 @@ async def calculate_backtest_return_get(
         total_return_percentage = (total_return / total_invested) * 100
 
         # Calculate days held and annualized return
-        days_held = (date.today() - purchaseDate).days
+        days_held = (sellDate - purchaseDate).days
         years_held = days_held / 365.25
 
         if years_held > 0:
@@ -273,8 +286,9 @@ async def calculate_backtest_return_get(
 
         return schemas.BacktestResponse(
             ticker=ticker.upper(),
+            currency=yf.Ticker(ticker).info.get("currency").upper(),
             purchaseDate=purchaseDate,
-            currentDate=date.today(),
+            sellDate=sellDate,
             investmentType=investmentType,
             lumpSumAmount=lumpSumAmount,
             dcaAmount=dcaAmount,
@@ -282,13 +296,14 @@ async def calculate_backtest_return_get(
             totalInvested=round(total_invested, 2),
             totalSharesPurchased=round(total_shares, 4),
             averagePurchasePrice=round(average_purchase_price, 2),
-            currentPrice=round(current_price, 2),
-            currentValue=round(current_value, 2),
+            sellPrice=round(current_price, 2),
+            sellValue=round(current_value, 2),
             totalReturn=round(total_return, 2),
             totalReturnPercentage=round(total_return_percentage, 2),
             annualizedReturn=round(annualized_return, 2),
             daysHeld=days_held,
             numberOfPurchases=number_of_purchases,
+            timestamp=int(datetime.now().timestamp()),
         )
 
     except Exception as e:
