@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,11 +7,22 @@ from auth import fastapi_users, cookie_auth_backend
 from schemas import UserCreate, UserRead, UserUpdate
 from routers import ticker, valuation, watchlist, forex, backtester, user
 
-app = FastAPI()
+app = FastAPI(
+    title="EquiSight Backend API",
+    description="Financial analysis and backtesting API",
+    version="1.0.0",
+)
+
+allowed_origins = [
+    "http://localhost:5173",
+]
+
+if os.getenv("ENVIRONMENT") == "development":
+    allowed_origins.append("http://localhost:*")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +63,11 @@ app.include_router(
 @app.get("/")
 async def root():
     return {"message": "Equisight Home Page!"}
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 
 app.include_router(ticker.router)

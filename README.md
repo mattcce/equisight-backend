@@ -478,15 +478,17 @@ Returns basic information about a ticker.
 **Parameters:**
 
 - `purchaseDate` (str): Initial purchase date
-- `investmentType` (str, Literal): Either lump sum or dollar-cost average
+- `sellDate` (str): Sell date
+- `investmentType` (str, Literal): Either lump sum, dollar-cost average, or lump sum and dollar-cost average
 - `lumpSumAmount` (str, Optional): Defaults to 1000
 - `dcaAmount` (str, Optional): Defaults to 100 per payment
 - `dcaFrequency` (str, Optional Literal): Weekly, Monthly, or Yearly
 
 **Usage Example:**
 
-- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&investmentType=lumpSum&lumpSumAmount=10000`
-- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&investmentType=dca&dcaAmount=1000&dcaFrequency=monthly`
+- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&sellDate=2025-07-06&investmentType=lumpSum&lumpSumAmount=10000`
+- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&sellDate=2025-07-06&investmentType=dca&dcaAmount=1000&dcaFrequency=monthly`
+- `/backtester/calculate-return/aapl?purchaseDate=2021-01-01&sellDate=2025-01-01&investmentType=lumpSumDca&lumpSumAmount=1000&dcaAmount=100&dcaFrequency=monthly`
 
 **Response Example:**
 
@@ -495,8 +497,9 @@ Lump Sum:
 ```json
 {
   "ticker": "AAPL",
+  "currency": "USD",
   "purchaseDate": "2024-01-01",
-  "currentDate": "2025-07-06",
+  "sellDate": "2025-07-06",
   "investmentType": "lumpSum",
   "lumpSumAmount": 10000.0,
   "dcaAmount": 100.0,
@@ -504,13 +507,14 @@ Lump Sum:
   "totalInvested": 10000.0,
   "totalSharesPurchased": 54.2622,
   "averagePurchasePrice": 184.29,
-  "currentPrice": 213.55,
-  "currentValue": 11587.69,
+  "sellPrice": 213.55,
+  "sellValue": 11587.69,
   "totalReturn": 1587.69,
   "totalReturnPercentage": 15.88,
   "annualizedReturn": 10.24,
   "daysHeld": 552,
-  "numberOfPurchases": 1
+  "numberOfPurchases": 1,
+  "timestamp": 1753259500
 }
 ```
 
@@ -519,22 +523,49 @@ DCA:
 ```json
 {
   "ticker": "AAPL",
+  "currency": "USD",
   "purchaseDate": "2024-01-01",
-  "currentDate": "2025-07-06",
-  "investmentType": "lumpSum",
-  "lumpSumAmount": 10000.0,
-  "dcaAmount": 100.0,
-  "dcaFrequency": null,
-  "totalInvested": 10000.0,
-  "totalSharesPurchased": 54.2622,
-  "averagePurchasePrice": 184.29,
-  "currentPrice": 213.55,
-  "currentValue": 11587.69,
-  "totalReturn": 1587.69,
-  "totalReturnPercentage": 15.88,
-  "annualizedReturn": 10.24,
+  "sellDate": "2025-07-06",
+  "investmentType": "dca",
+  "lumpSumAmount": 1000.0,
+  "dcaAmount": 1000.0,
+  "dcaFrequency": "monthly",
+  "totalInvested": 19000.0,
+  "totalSharesPurchased": 91.4815,
+  "averagePurchasePrice": 207.69,
+  "sellPrice": 213.55,
+  "sellValue": 19535.87,
+  "totalReturn": 535.87,
+  "totalReturnPercentage": 2.82,
+  "annualizedReturn": 1.86,
   "daysHeld": 552,
-  "numberOfPurchases": 1
+  "numberOfPurchases": 19,
+  "timestamp": 1753259460
+}
+```
+
+Lump Sum + DCA:
+```json
+{
+  "ticker": "AAPL",
+  "currency": "USD",
+  "purchaseDate": "2021-01-01",
+  "sellDate": "2025-01-01",
+  "investmentType": "lumpSumDca",
+  "lumpSumAmount": 1000,
+  "dcaAmount": 100,
+  "dcaFrequency": "monthly",
+  "totalInvested": 5800,
+  "totalSharesPurchased": 37.4793,
+  "averagePurchasePrice": 154.75,
+  "sellPrice": 249.82,
+  "sellValue": 9362.97,
+  "totalReturn": 3562.97,
+  "totalReturnPercentage": 61.43,
+  "annualizedReturn": 12.72,
+  "daysHeld": 1461,
+  "numberOfPurchases": 49,
+  "timestamp": 1753259198
 }
 ```
 
