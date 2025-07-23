@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
@@ -30,49 +30,54 @@ app.add_middleware(
 
 init_db()
 
+# Master API Router
+api_router = APIRouter(prefix="/api")
+
 # Auth routes
-app.include_router(
+api_router.include_router(
     fastapi_users.get_auth_router(cookie_auth_backend),
     prefix="/auth",
     tags=["auth"],
 )
 
-app.include_router(
+api_router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",
     tags=["auth"],
 )
 
-app.include_router(
+api_router.include_router(
     fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"]
 )
 
-app.include_router(
+api_router.include_router(
     fastapi_users.get_verify_router(UserRead),
     prefix="/auth",
     tags=["auth"],
 )
 
-app.include_router(
+api_router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
 )
 
 
-@app.get("/")
+@app.get("/api/")
 async def root():
     return {"message": "Equisight Home Page!"}
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
 
 
-app.include_router(ticker.router)
-app.include_router(watchlist.router)
-app.include_router(forex.router)
-app.include_router(valuation.router)
-app.include_router(backtester.router)
-app.include_router(user.router)
+api_router.include_router(ticker.router)
+api_router.include_router(watchlist.router)
+api_router.include_router(forex.router)
+api_router.include_router(valuation.router)
+api_router.include_router(backtester.router)
+api_router.include_router(user.router)
+
+app.include_router(api_router)
