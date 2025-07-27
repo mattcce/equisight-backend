@@ -156,5 +156,4 @@ class UserPreferencesUpdate(BaseModel):
         description="Currency code (e.g. SGD, USD, EUR)",
     )
 
-    class Config:
-        json_schema_extra = {"example": {"currency": "USD"}}
+    model_config = ConfigDict(json_schema_extra={"example": {"currency": "USD"}})
