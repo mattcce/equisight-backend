@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from fastapi import Depends, Request, HTTPException, status
 from fastapi_users import BaseUserManager, FastAPIUsers, IntegerIDMixin, exceptions
@@ -15,7 +16,7 @@ from schemas import UserCreate
 from fastapi_users.password import PasswordHelper
 import re
 
-SECRET = "dev"
+SECRET = os.getenv("SECRET_KEY", "dev")
 
 
 class CustomPasswordHelper(PasswordHelper):
@@ -180,6 +181,7 @@ cookie_transport = CookieTransport(
     cookie_max_age=3600,
     cookie_secure=True,
     cookie_httponly=True,
+    cookie_samesite="none",
 )
 
 

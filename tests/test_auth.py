@@ -13,7 +13,7 @@ class TestAuthenticationEndpoints:
     ):
         user_data = {"email": "newuser@example.com", "password": "strongpAssword123!"}
 
-        response = await async_client.post("/auth/register", json=user_data)
+        response = await async_client.post("/api/auth/register", json=user_data)
         assert response.status_code == status.HTTP_201_CREATED
 
         data = response.json()
@@ -33,7 +33,7 @@ class TestAuthenticationEndpoints:
     ):
         user_data = {"email": test_user.email, "password": "anotherpassword123"}
 
-        response = await async_client.post("/auth/register", json=user_data)
+        response = await async_client.post("/api/auth/register", json=user_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_register_invalid_email(
@@ -41,7 +41,7 @@ class TestAuthenticationEndpoints:
     ):
         user_data = {"email": "invalid-email-format", "password": "strongpassword123"}
 
-        response = await async_client.post("/auth/register", json=user_data)
+        response = await async_client.post("/api/auth/register", json=user_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_register_weak_password(
@@ -49,7 +49,7 @@ class TestAuthenticationEndpoints:
     ):
         user_data = {"email": "newuser@example.com", "password": "123"}
 
-        response = await async_client.post("/auth/register", json=user_data)
+        response = await async_client.post("/api/auth/register", json=user_data)
         assert response.status_code in [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -60,7 +60,7 @@ class TestAuthenticationEndpoints:
     ):
         login_data = {"username": test_user.email, "password": "P@ssw0rd"}
 
-        response = await async_client.post("/auth/login", data=login_data)
+        response = await async_client.post("/api/auth/login", data=login_data)
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         assert "equisightauth" in response.cookies
@@ -71,7 +71,7 @@ class TestAuthenticationEndpoints:
     ):
         login_data = {"username": "nonexistent@example.com", "password": "anypassword"}
 
-        response = await async_client.post("/auth/login", data=login_data)
+        response = await async_client.post("/api/auth/login", data=login_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_login_invalid_password(
@@ -79,7 +79,7 @@ class TestAuthenticationEndpoints:
     ):
         login_data = {"username": test_user.email, "password": "wrongpassword"}
 
-        response = await async_client.post("/auth/login", data=login_data)
+        response = await async_client.post("/api/auth/login", data=login_data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_login_missing_credentials(
@@ -87,40 +87,42 @@ class TestAuthenticationEndpoints:
     ):
         # Missing password
         response = await async_client.post(
-            "/auth/login", data={"username": "test@example.com"}
+            "/api/auth/login", data={"username": "test@example.com"}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
         # Missing username
-        response = await async_client.post("/auth/login", data={"password": "password"})
+        response = await async_client.post(
+            "/api/auth/login", data={"password": "password"}
+        )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_protected_endpoint_with_valid_token(
         self, authenticated_client: AsyncClient, async_test_db: AsyncSession
     ):
         # Use any protected endpoint - watchlist for example
-        response = await authenticated_client.get("/users/me/watchlist")
+        response = await authenticated_client.get("/api/users/me/watchlist")
         assert response.status_code == status.HTTP_200_OK
 
     async def test_protected_endpoint_without_token(
         self, async_client: AsyncClient, async_test_db: AsyncSession
     ):
-        response = await async_client.get("/users/me/watchlist")
+        response = await async_client.get("/api/users/me/watchlist")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     async def test_protected_endpoint_with_invalid_token(
         self, async_client: AsyncClient, async_test_db: AsyncSession
     ):
         headers = {"Authorization": "Bearer invalid_token_here"}
-        response = await async_client.get("/users/me/watchlist", headers=headers)
+        response = await async_client.get("/api/users/me/watchlist", headers=headers)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.parametrize(
         "endpoint",
         [
-            "/users/me/watchlist",
-            "/ticker/AAPL/info",
-            "/ticker/AAPL/history",
+            "/api/users/me/watchlist",
+            "/api/ticker/AAPL/info",
+            "/api/ticker/AAPL/history",
         ],
     )
     async def test_multiple_protected_endpoints_require_auth(
@@ -137,5 +139,5 @@ class TestAuthenticationEndpoints:
         expired_token = "expired_jwt_token_here"
         headers = {"Authorization": f"Bearer {expired_token}"}
 
-        response = await async_client.get("/users/me/watchlist", headers=headers)
+        response = await async_client.get("/api/users/me/watchlist", headers=headers)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED

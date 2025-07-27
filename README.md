@@ -123,6 +123,30 @@ Returns basic information about a ticker.
 }
 ```
 
+` GET /ticker/{ticker}/all-time`
+
+**Description:** All time historical data in daily resolution
+
+**Response Example:**
+
+```json
+{
+  "ticker": "AAPL",
+  "totalDays": 11232,
+  "earliestDate": 345445200,
+  "latestDate": 1751947200,
+  "allTimeHistory": [
+    {
+      "ticker": "AAPL",
+      "timestamp": 345445200,
+      "close": 0.09859661757946014,
+      "volume": 469033600
+    },
+    ...
+  ]
+}
+```
+
 ### Ticker News & Press Releases
 
 `GET /ticker/{ticker}/news`
@@ -412,6 +436,185 @@ Returns basic information about a ticker.
 **Description:** Deletes a specific position by its `positionId`.
 
 **Response:** `204 No Content` on success.
+
+## User Preferences
+`GET /users/me/preferences`
+
+**Description:** User specified preferences (currently just base currency preference)
+
+**Response Example:**
+```json
+{
+  "currency": "USD"
+}
+```
+
+`PUT /users/me/preferences`
+
+**Description:** Set own user preferences
+
+**Request Example:**
+```json
+{
+  "currency": "SGD"
+}
+```
+
+**Response Example:**
+```json
+{
+  "currency": "SGD"
+}
+```
+
+
+## Analysis Features
+### Backtesting
+
+`GET /backtester/calculate-return/{ticker}`
+
+**Description:** Obtain theoretical gains based on investment strategy on a ticker with historical data.
+
+**Parameters:**
+
+- `purchaseDate` (str): Initial purchase date
+- `sellDate` (str): Sell date
+- `investmentType` (str, Literal): Either lump sum, dollar-cost average, or lump sum and dollar-cost average
+- `lumpSumAmount` (str, Optional): Defaults to 1000
+- `dcaAmount` (str, Optional): Defaults to 100 per payment
+- `dcaFrequency` (str, Optional Literal): Weekly, Monthly, or Yearly
+
+**Usage Example:**
+
+- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&sellDate=2025-07-06&investmentType=lumpSum&lumpSumAmount=10000`
+- `/backtester/calculate-return/AAPL?purchaseDate=2024-01-01&sellDate=2025-07-06&investmentType=dca&dcaAmount=1000&dcaFrequency=monthly`
+- `/backtester/calculate-return/aapl?purchaseDate=2021-01-01&sellDate=2025-01-01&investmentType=lumpSumDca&lumpSumAmount=1000&dcaAmount=100&dcaFrequency=monthly`
+
+**Response Example:**
+
+Lump Sum:
+
+```json
+{
+  "ticker": "AAPL",
+  "currency": "USD",
+  "purchaseDate": "2024-01-01",
+  "sellDate": "2025-07-06",
+  "investmentType": "lumpSum",
+  "lumpSumAmount": 10000.0,
+  "dcaAmount": 100.0,
+  "dcaFrequency": null,
+  "totalInvested": 10000.0,
+  "totalSharesPurchased": 54.2622,
+  "averagePurchasePrice": 184.29,
+  "sellPrice": 213.55,
+  "sellValue": 11587.69,
+  "totalReturn": 1587.69,
+  "totalReturnPercentage": 15.88,
+  "annualizedReturn": 10.24,
+  "daysHeld": 552,
+  "numberOfPurchases": 1,
+  "timestamp": 1753259500
+}
+```
+
+DCA:
+
+```json
+{
+  "ticker": "AAPL",
+  "currency": "USD",
+  "purchaseDate": "2024-01-01",
+  "sellDate": "2025-07-06",
+  "investmentType": "dca",
+  "lumpSumAmount": 1000.0,
+  "dcaAmount": 1000.0,
+  "dcaFrequency": "monthly",
+  "totalInvested": 19000.0,
+  "totalSharesPurchased": 91.4815,
+  "averagePurchasePrice": 207.69,
+  "sellPrice": 213.55,
+  "sellValue": 19535.87,
+  "totalReturn": 535.87,
+  "totalReturnPercentage": 2.82,
+  "annualizedReturn": 1.86,
+  "daysHeld": 552,
+  "numberOfPurchases": 19,
+  "timestamp": 1753259460
+}
+```
+
+Lump Sum + DCA:
+```json
+{
+  "ticker": "AAPL",
+  "currency": "USD",
+  "purchaseDate": "2021-01-01",
+  "sellDate": "2025-01-01",
+  "investmentType": "lumpSumDca",
+  "lumpSumAmount": 1000,
+  "dcaAmount": 100,
+  "dcaFrequency": "monthly",
+  "totalInvested": 5800,
+  "totalSharesPurchased": 37.4793,
+  "averagePurchasePrice": 154.75,
+  "sellPrice": 249.82,
+  "sellValue": 9362.97,
+  "totalReturn": 3562.97,
+  "totalReturnPercentage": 61.43,
+  "annualizedReturn": 12.72,
+  "daysHeld": 1461,
+  "numberOfPurchases": 49,
+  "timestamp": 1753259198
+}
+```
+
+### Fair Valuation Calculator
+
+`GET /analysis/{ticker}/fairvalue`
+
+**Description:** Get calculated "fair value" of a ticker based on Damodaran's models
+
+**Parameters:**
+
+- `high` (int): Assumed high growth period in years (default: 5)
+- `stable` (int): Assumed stable growth period in years (default: 5)
+
+**Usage Example:** `/analysis/AAPL/fairvalue?high=5&stable=5`
+
+**Response Example:**
+```json
+{
+  "symbol": "AAPL",
+  "costOfEquity": 9.216220049591065,
+  "costOfDebt": 4.354000049591065,
+  "wacc": 9.063600258375969,
+  "roic": 55.53285888608812,
+  "expectedGrowthRate": 13.448637307417242,
+  "fairValue": 194.36087124469228
+}
+```
+
+`GET /analysis/{ticker}/grahamvalue`
+
+**Description:** Gets current market price to get implied growth rate, and uses that growth rate with "Graham Formula" to obtain a fair value estimate
+
+**Parameters:**
+
+- `terminal` (float): Assumed terminal growth rate of company in percentage (default: 5)
+- `growth` (int): Assumed continuous growth period (default: 5)
+
+**Usage Example:** `/analysis/AAPL/grahamvalue?terminal=5&growth=10`
+
+**Response Example:**
+```json
+{
+  "symbol": "AAPL",
+  "wacc": 9.063600258375969,
+  "impliedGrowthRate": 17.588908743855477,
+  "grahamValue": 261.3025431202308
+}
+```
 
 
 ## Miscellaneous

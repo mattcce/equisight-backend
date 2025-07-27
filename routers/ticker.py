@@ -185,6 +185,186 @@ async def history(
     return JSONResponse(content=result)
 
 
+@router.get("/{ticker}/all-time")
+async def all_time(
+    ticker: str,
+    db: Session = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    ticker = ticker.upper()
+
+    stmt = select(TickerInfo).filter(TickerInfo.ticker == ticker)
+    result = await db.execute(stmt)
+
+    try:
+        info = await asyncio.to_thread(lambda: yf.Ticker(ticker).info)
+        if not info or "exchangeTimezoneName" not in info:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Invalid ticker: {ticker}",
+            )
+
+        data = {
+            "ticker": ticker,
+            "exchangeTimezoneName": info["exchangeTimezoneName"],
+        }
+        db.add(TickerInfo(**data))
+        await db.commit()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Invalid ticker: {ticker}",
+        )
+
+    cached_stmt = (
+        select(TickerEntry)
+        .filter(TickerEntry.ticker == ticker)
+        .order_by(TickerEntry.timestamp.asc())
+    )
+    cached_result = await db.execute(cached_stmt)
+    cached_entries = cached_result.scalars().all()
+
+    if cached_entries:
+        oldest_cached = cached_entries[0].timestamp
+        newest_cached = cached_entries[-1].timestamp
+
+        # Check if we need to fetch newer data
+        def check_and_fetch_recent():
+            try:
+                recent_hist = yf.Ticker(ticker).history(
+                    start=newest_cached, period="1mo"
+                )
+                if recent_hist.empty:
+                    return None
+                return recent_hist.reset_index()
+            except Exception:
+                return None
+
+        # Check if we need to fetch older data (get max range available)
+        def check_and_fetch_older():
+            try:
+                max_hist = yf.Ticker(ticker).history(period="max")
+                if max_hist.empty:
+                    return None
+                return max_hist.reset_index()
+            except Exception:
+                return None
+
+        # Fetch recent data if needed
+        recent_df = await asyncio.to_thread(check_and_fetch_recent)
+        if recent_df is not None and len(recent_df) > 1:
+            # Store new recent data
+            for _, row in recent_df.iterrows():
+                row_date = int(row["Date"].timestamp())
+                if row_date > newest_cached:
+                    exists_stmt = select(TickerEntry).filter_by(
+                        ticker=ticker, timestamp=row_date
+                    )
+                    exists_result = await db.execute(exists_stmt)
+                    if not exists_result.scalars().first():
+                        db_entry = TickerEntry(
+                            ticker=ticker,
+                            timestamp=row_date,
+                            close=float(row["Close"]),
+                            volume=int(row["Volume"]),
+                        )
+                        db.add(db_entry)
+            await db.commit()
+
+        # Check if we need to fetch older data
+        older_df = await asyncio.to_thread(check_and_fetch_older)
+        if older_df is not None and len(older_df) > 0:
+            oldest_available = int(older_df.iloc[0]["Date"].timestamp())
+            if oldest_available < oldest_cached:
+                # Store older data that we don't have
+                for _, row in older_df.iterrows():
+                    row_date = int(row["Date"].timestamp())
+                    if row_date < oldest_cached:
+                        exists_stmt = select(TickerEntry).filter_by(
+                            ticker=ticker, timestamp=row_date
+                        )
+                        exists_result = await db.execute(exists_stmt)
+                        if not exists_result.scalars().first():
+                            db_entry = TickerEntry(
+                                ticker=ticker,
+                                timestamp=row_date,
+                                close=float(row["Close"]),
+                                volume=int(row["Volume"]),
+                            )
+                            db.add(db_entry)
+                await db.commit()
+
+    else:
+        # No cached data, fetch all available historical data
+        def get_all_time_data():
+            try:
+                df = yf.Ticker(ticker).history(period="max")
+                if df.empty:
+                    return None
+                return df.reset_index()
+            except Exception:
+                return None
+
+        df = await asyncio.to_thread(get_all_time_data)
+
+        if df is None or len(df) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No historical data available for ticker: {ticker}",
+            )
+
+        # Store all the data
+        for _, row in df.iterrows():
+            row_date = int(row["Date"].timestamp())
+            db_entry = TickerEntry(
+                ticker=ticker,
+                timestamp=row_date,
+                close=float(row["Close"]),
+                volume=int(row["Volume"]),
+            )
+            db.add(db_entry)
+        await db.commit()
+
+    # Return all cached data
+    all_entries_stmt = (
+        select(TickerEntry)
+        .filter(TickerEntry.ticker == ticker)
+        .order_by(TickerEntry.timestamp.asc())
+    )
+    all_entries_result = await db.execute(all_entries_stmt)
+    all_entries = all_entries_result.scalars().all()
+
+    if not all_entries:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No historical data available for ticker: {ticker}",
+        )
+
+    result = [
+        {
+            "ticker": e.ticker,
+            "timestamp": e.timestamp,
+            "close": e.close,
+            "volume": e.volume,
+        }
+        for e in all_entries
+    ]
+
+    earliest_date = all_entries[0].timestamp
+    latest_date = all_entries[-1].timestamp
+    total_days = len(all_entries)
+
+    return JSONResponse(
+        content={
+            "ticker": ticker,
+            "totalDays": total_days,
+            "earliestDate": earliest_date,
+            "latestDate": latest_date,
+            "allTimeHistory": result,
+        }
+    )
+
+
 @router.get("/{ticker}/intraday")
 async def intraday(
     ticker: str,
