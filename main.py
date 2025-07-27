@@ -14,7 +14,10 @@ app = FastAPI(
 )
 
 allowed_origins = [
+    "http://localhost:4173",
+    "https://localhost:4173",
     "http://localhost:5173",
+    "https://localhost:5173",
 ]
 
 if os.getenv("ENVIRONMENT") == "development":

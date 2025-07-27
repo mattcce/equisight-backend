@@ -14,3 +14,6 @@ wheels/
 
 # CSV File
 analysis/fundamental/crp.csv
+
+# Private Key
+equisight-backend.pem
